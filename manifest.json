@@ -1,10 +1,10 @@
 {
-  "name": "سوق صنعاء للقات",
-  "short_name": "سوق صنعاء",
+  "name": "سوق بن عبود للقات",
+  "short_name": "سوق بن عبود",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#dc2626",
+  "theme_color": "#15803d",
   "orientation": "portrait",
   "icons": [
     {

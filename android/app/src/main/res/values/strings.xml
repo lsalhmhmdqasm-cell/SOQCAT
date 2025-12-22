@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">سوق صنعاء</string>
+    <string name="app_name">سوق بن عبود</string>
     <string name="title_activity_main">Qat Shop</string>
     <string name="package_name">com.qatshop.app</string>
     <string name="custom_url_scheme">com.qatshop.app</string>
