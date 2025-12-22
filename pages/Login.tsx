@@ -24,13 +24,14 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
       await fetch(`${backendBase}/sanctum/csrf-cookie`, { credentials: 'include' });
-      const response = await api.post('/login', { email: `${phone}@qatshop.com`, password });
-      const { data } = response.data;
+      const email = phone.includes('@') ? phone : `${phone}@qatshop.com`;
+      const response = await api.post('/login', { email, password });
+      const { data, access_token } = response.data;
       if (data?.role !== 'super_admin') {
         alert('هذه الصفحة مخصصة لدخول المشرف العام فقط. يرجى الدخول من تطبيق المتجر الخاص بكم.');
         return;
       }
-      login(data);
+      login(data, access_token);
       onLogin(data);
     } catch (err: any) {
       alert(err.response?.data?.message || 'فشل تسجيل الدخول');

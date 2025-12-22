@@ -11,6 +11,27 @@ export const api = axios.create({
   xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
+const existingToken = (() => {
+  try {
+    return localStorage.getItem('accessToken') || '';
+  } catch {
+    return '';
+  }
+})();
+if (existingToken) {
+  api.defaults.headers.common = { ...api.defaults.headers.common, Authorization: `Bearer ${existingToken}` };
+}
+
+api.interceptors.request.use((config) => {
+  try {
+    const t = localStorage.getItem('accessToken');
+    if (t) {
+      (api.defaults.headers as any).common = { ...(api.defaults.headers as any).common, Authorization: `Bearer ${t}` };
+    }
+  } catch {}
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

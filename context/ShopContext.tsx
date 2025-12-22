@@ -7,7 +7,7 @@ interface ShopContextType {
     user: User | null;
     cart: CartItem[];
     isLoading: boolean;
-    login: (user: User) => void;
+    login: (user: User, token?: string) => void;
     logout: () => void;
     addToCart: (product: Product) => void;
     updateCartQuantity: (productId: string, delta: number) => void;
@@ -110,6 +110,10 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const initApp = async () => {
             try {
+                const savedToken = localStorage.getItem('accessToken');
+                if (savedToken) {
+                    (api.defaults.headers as any).common = { ...(api.defaults.headers as any).common, Authorization: `Bearer ${savedToken}` };
+                }
                 const res = await api.get('/me');
                 const mapped = { 
                     ...res.data, 
@@ -139,19 +143,27 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     }, [cart]);
 
     // Actions
-    const login = (userData: User) => {
+    const login = (userData: User, token?: string) => {
         const mapped = { 
             ...userData, 
             isAdmin: userData?.isAdmin ?? (userData?.role === 'shop_admin' || userData?.role === 'super_admin')
         };
         setUser(mapped);
         localStorage.setItem('user', JSON.stringify(mapped));
+        if (token) {
+            localStorage.setItem('accessToken', token);
+            (api.defaults.headers as any).common = { ...(api.defaults.headers as any).common, Authorization: `Bearer ${token}` };
+        }
     };
 
     const logout = () => {
         api.post('/logout').catch(() => {});
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        if ((api.defaults.headers as any).common) {
+            delete (api.defaults.headers as any).common['Authorization'];
+        }
     };
 
     const addToCart = (product: Product) => {
