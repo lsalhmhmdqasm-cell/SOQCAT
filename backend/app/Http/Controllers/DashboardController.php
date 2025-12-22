@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\User;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -66,20 +65,20 @@ class DashboardController extends Controller
                 'today' => $ordersToday,
                 'total' => $totalOrders,
                 'pending' => $pendingOrders,
-                'completed' => $completedOrders
+                'completed' => $completedOrders,
             ],
             'revenue' => [
                 'today' => $revenueToday,
-                'total' => $totalRevenue
+                'total' => $totalRevenue,
             ],
             'products' => [
                 'total' => $totalProducts,
-                'active' => $activeProducts
+                'active' => $activeProducts,
             ],
             'customers' => [
-                'total' => $totalCustomers
+                'total' => $totalCustomers,
             ],
-            'recent_orders' => $recentOrders
+            'recent_orders' => $recentOrders,
         ]);
     }
 }

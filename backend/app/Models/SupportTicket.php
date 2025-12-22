@@ -12,7 +12,7 @@ class SupportTicket extends Model
         'description',
         'priority',
         'status',
-        'assigned_to'
+        'assigned_to',
     ];
 
     public function client()

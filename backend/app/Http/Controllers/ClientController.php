@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Client;
 use App\Models\Shop;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Request;
 
 class ClientController extends Controller
 {
@@ -15,7 +14,7 @@ class ClientController extends Controller
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
+
         // Eager load associated shop and subscription
         return Client::with(['shop', 'subscription'])->latest()->get();
     }
@@ -37,13 +36,13 @@ class ClientController extends Controller
 
         // Create Client
         $client = Client::create($validated);
-        
+
         // Also create a default Shop for this client
         $shop = Shop::create([
             'name' => $validated['business_name'],
-            'status' => 'active'
+            'status' => 'active',
         ]);
-        
+
         $client->shop_id = $shop->id;
         $client->save();
 
@@ -58,7 +57,7 @@ class ClientController extends Controller
         }
 
         $client = Client::findOrFail($id);
-        
+
         $validated = $request->validate([
             'name' => 'sometimes|string',
             'phone' => 'sometimes|string',
@@ -78,6 +77,7 @@ class ClientController extends Controller
         }
         $client = Client::findOrFail($id);
         $client->delete();
+
         // Also delete shop? Maybe keep for records or soft delete.
         return response()->json(['message' => 'Client deleted']);
     }

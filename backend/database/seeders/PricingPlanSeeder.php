@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\PricingPlan;
+use Illuminate\Database\Seeder;
 
 class PricingPlanSeeder extends Seeder
 {
@@ -21,13 +21,15 @@ class PricingPlanSeeder extends Seeder
                     'orders' => 100,
                     'storage' => '1GB',
                     'support' => 'عادي',
-                    'updates' => true
+                    'updates' => true,
+                    'sla_p95_ms' => 400,
+                    'backup' => ['frequency' => 'weekly', 'retention_days' => 30],
                 ],
                 'max_products' => 50,
                 'max_orders_per_month' => 100,
                 'max_storage_mb' => 1024,
                 'is_active' => true,
-                'sort_order' => 1
+                'sort_order' => 1,
             ],
             [
                 'name' => 'Pro',
@@ -41,13 +43,15 @@ class PricingPlanSeeder extends Seeder
                     'storage' => '5GB',
                     'support' => 'أولوية',
                     'updates' => true,
-                    'analytics' => true
+                    'sla_p95_ms' => 300,
+                    'backup' => ['frequency' => 'daily', 'retention_days' => 60],
+                    'analytics' => true,
                 ],
                 'max_products' => null, // unlimited
                 'max_orders_per_month' => null, // unlimited
                 'max_storage_mb' => 5120,
                 'is_active' => true,
-                'sort_order' => 2
+                'sort_order' => 2,
             ],
             [
                 'name' => 'Enterprise',
@@ -61,16 +65,18 @@ class PricingPlanSeeder extends Seeder
                     'storage' => '20GB',
                     'support' => '24/7',
                     'updates' => true,
+                    'sla_p95_ms' => 250,
+                    'backup' => ['frequency' => 'daily', 'retention_days' => 90],
                     'analytics' => true,
                     'custom_domain' => true,
-                    'white_label' => true
+                    'white_label' => true,
                 ],
                 'max_products' => null,
                 'max_orders_per_month' => null,
                 'max_storage_mb' => 20480,
                 'is_active' => true,
-                'sort_order' => 3
-            ]
+                'sort_order' => 3,
+            ],
         ];
 
         foreach ($plans as $plan) {

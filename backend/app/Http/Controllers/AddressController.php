@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Address;
+use Illuminate\Http\Request;
 
 class AddressController extends Controller
 {
@@ -28,14 +28,14 @@ class AddressController extends Controller
         $validated = $request->validate([
             'label' => 'required|string|max:255',
             'details' => 'required|string',
-            'is_default' => 'nullable|boolean'
+            'is_default' => 'nullable|boolean',
         ]);
 
         $address = Address::create([
             'user_id' => $request->user()->id,
             'label' => $validated['label'],
             'details' => $validated['details'],
-            'is_default' => $validated['is_default'] ?? false
+            'is_default' => $validated['is_default'] ?? false,
         ]);
 
         // If marked as default, unset others
@@ -57,7 +57,7 @@ class AddressController extends Controller
         $validated = $request->validate([
             'label' => 'sometimes|string|max:255',
             'details' => 'sometimes|string',
-            'is_default' => 'sometimes|boolean'
+            'is_default' => 'sometimes|boolean',
         ]);
 
         $address->update($validated);

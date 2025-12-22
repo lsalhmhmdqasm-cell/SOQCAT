@@ -13,13 +13,13 @@ class Subscription extends Model
         'billing_cycle',
         'features',
         'status',
-        'next_billing_date'
+        'next_billing_date',
     ];
 
     protected $casts = [
         'features' => 'array',
         'price' => 'decimal:2',
-        'next_billing_date' => 'date'
+        'next_billing_date' => 'date',
     ];
 
     public function client()

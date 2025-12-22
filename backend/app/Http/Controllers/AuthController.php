@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -14,7 +15,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
+            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised()],
             'phone' => 'nullable|string',
         ]);
 
@@ -23,7 +24,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
-            'role' => 'customer'
+            'role' => 'customer',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -37,9 +38,9 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt($request->only('email', 'password'))) {
             return response()->json([
-                'message' => 'Invalid login details'
+                'message' => 'Invalid login details',
             ], 401);
         }
 
@@ -48,9 +49,9 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-             'data' => $user,
-             'access_token' => $token,
-             'token_type' => 'Bearer',
+            'data' => $user,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
         ]);
     }
 
@@ -67,17 +68,27 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
             'phone' => 'sometimes|string|max:20',
-            'password' => 'sometimes|string|min:8'
+            'password' => ['sometimes', 'string', Password::min(8)->mixedCase()->numbers()->symbols()->uncompromised()],
         ]);
 
         $user = $request->user();
-        
+
         if (isset($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         }
-        
+
         $user->update($validated);
-        
+
         return response()->json($user);
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::guard('web')->logout();
+        if (method_exists($request, 'session')) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+        return response()->json(['message' => 'Logged out']);
     }
 }

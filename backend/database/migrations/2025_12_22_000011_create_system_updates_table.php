@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('is_critical')->default(false);
             $table->json('applied_to')->nullable(); // [1, 2, 3] client_ids
             $table->timestamps();
-            
+
             $table->index('version');
             $table->index('release_date');
         });

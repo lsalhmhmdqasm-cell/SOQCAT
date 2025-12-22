@@ -21,7 +21,7 @@ class Coupon extends Model
         'used_count',
         'starts_at',
         'expires_at',
-        'is_active'
+        'is_active',
     ];
 
     protected $casts = [
@@ -34,23 +34,35 @@ class Coupon extends Model
     {
         return $this->belongsTo(Shop::class);
     }
-    
+
     public function uses()
     {
         return $this->hasMany(CouponUse::class);
     }
-    
+
     public function isValidForUser($userId, $amount)
     {
-        if (!$this->is_active) return false;
-        if ($this->starts_at && $this->starts_at->isFuture()) return false;
-        if ($this->expires_at && $this->expires_at->isPast()) return false;
-        if ($this->usage_limit > 0 && $this->used_count >= $this->usage_limit) return false;
-        if ($this->min_purchase_amount > 0 && $amount < $this->min_purchase_amount) return false;
-        
+        if (! $this->is_active) {
+            return false;
+        }
+        if ($this->starts_at && $this->starts_at->isFuture()) {
+            return false;
+        }
+        if ($this->expires_at && $this->expires_at->isPast()) {
+            return false;
+        }
+        if ($this->usage_limit > 0 && $this->used_count >= $this->usage_limit) {
+            return false;
+        }
+        if ($this->min_purchase_amount > 0 && $amount < $this->min_purchase_amount) {
+            return false;
+        }
+
         $userUses = $this->uses()->where('user_id', $userId)->count();
-        if ($this->usage_limit_per_user > 0 && $userUses >= $this->usage_limit_per_user) return false;
-        
+        if ($this->usage_limit_per_user > 0 && $userUses >= $this->usage_limit_per_user) {
+            return false;
+        }
+
         return true;
     }
 }

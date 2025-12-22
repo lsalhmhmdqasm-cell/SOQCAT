@@ -4,9 +4,10 @@ import { useOrderTracking } from '../hooks/useOrderTracking';
 import { Package, Truck, CheckCircle, Clock, XCircle, ArrowRight, Phone, MapPin } from 'lucide-react';
 
 export const OrderTracking = () => {
-    const { trackingNumber } = useParams<{ trackingNumber: string }>();
+    const params = useParams();
+    const trackingNumber = (params as any).trackingNumber || (params as any).id;
     const navigate = useNavigate();
-    const { order, loading, error } = useOrderTracking(trackingNumber!);
+    const { order, loading, error } = useOrderTracking(String(trackingNumber || ''));
 
     if (loading) {
         return (

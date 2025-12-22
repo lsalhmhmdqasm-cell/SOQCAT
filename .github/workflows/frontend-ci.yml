@@ -1,0 +1,62 @@
+name: Frontend CI (Vite Build + Smoke)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite app
+        env:
+          VITE_API_URL: http://localhost:8080/api
+        run: npm run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist/
+
+      - name: Build backend Docker image (for preview smoke)
+        run: docker build -t qatshop-backend .
+
+      - name: Run backend container
+        run: |
+          docker run -d -p 8080:80 --name backend_test qatshop-backend
+          docker exec backend_test bash -lc "mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite"
+          docker exec backend_test php /var/www/html/artisan migrate --force
+          docker exec backend_test php /var/www/html/artisan db:seed --force
+          sleep 5
+
+      - name: Preview dist and smoke test
+        shell: bash
+        run: |
+          nohup npx vite preview --strictPort --port 4173 >/dev/null 2>&1 &
+          sleep 2
+          CODE=$(curl -sSL -o /dev/null -w "%{http_code}" http://localhost:4173)
+          if [ "$CODE" -ne 200 ]; then
+            echo "Frontend smoke failed with status $CODE"
+            exit 1
+          fi
+          echo "Frontend preview OK"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop backend_test || true
+          docker rm -f backend_test || true

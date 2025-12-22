@@ -13,13 +13,13 @@ class SystemUpdate extends Model
         'changelog',
         'release_date',
         'is_critical',
-        'applied_to'
+        'applied_to',
     ];
 
     protected $casts = [
         'release_date' => 'date',
         'is_critical' => 'boolean',
-        'applied_to' => 'array'
+        'applied_to' => 'array',
     ];
 
     public function isAppliedTo($clientId)
@@ -30,7 +30,7 @@ class SystemUpdate extends Model
     public function markAsApplied($clientId)
     {
         $applied = $this->applied_to ?? [];
-        if (!in_array($clientId, $applied)) {
+        if (! in_array($clientId, $applied)) {
             $applied[] = $clientId;
             $this->update(['applied_to' => $applied]);
         }

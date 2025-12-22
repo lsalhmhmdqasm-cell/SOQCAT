@@ -13,11 +13,11 @@ class Address extends Model
         'user_id',
         'label',
         'details',
-        'is_default'
+        'is_default',
     ];
 
     protected $casts = [
-        'is_default' => 'boolean'
+        'is_default' => 'boolean',
     ];
 
     /**

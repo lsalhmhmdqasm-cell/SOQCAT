@@ -17,7 +17,7 @@ class PricingPlan extends Model
         'max_orders_per_month',
         'max_storage_mb',
         'is_active',
-        'sort_order'
+        'sort_order',
     ];
 
     protected $casts = [
@@ -25,7 +25,7 @@ class PricingPlan extends Model
         'monthly_price' => 'decimal:2',
         'yearly_price' => 'decimal:2',
         'lifetime_price' => 'decimal:2',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
     public function hasMonthlyOption()
@@ -45,21 +45,23 @@ class PricingPlan extends Model
 
     public function getYearlySavings()
     {
-        if (!$this->hasMonthlyOption() || !$this->hasYearlyOption()) {
+        if (! $this->hasMonthlyOption() || ! $this->hasYearlyOption()) {
             return 0;
         }
-        
+
         $yearlyAsMonthly = $this->monthly_price * 12;
+
         return $yearlyAsMonthly - $this->yearly_price;
     }
 
     public function getYearlySavingsPercentage()
     {
-        if (!$this->hasMonthlyOption() || !$this->hasYearlyOption()) {
+        if (! $this->hasMonthlyOption() || ! $this->hasYearlyOption()) {
             return 0;
         }
-        
+
         $yearlyAsMonthly = $this->monthly_price * 12;
+
         return round((($yearlyAsMonthly - $this->yearly_price) / $yearlyAsMonthly) * 100, 1);
     }
 }

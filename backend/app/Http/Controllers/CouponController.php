@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Coupon;
-use App\Models\Order;
+use Illuminate\Http\Request;
 
 class CouponController extends Controller
 {
@@ -13,19 +12,19 @@ class CouponController extends Controller
     {
         $request->validate([
             'code' => 'required|string',
-            'amount' => 'required|numeric|min:0'
+            'amount' => 'required|numeric|min:0',
         ]);
 
         $user = $request->user();
         $coupon = Coupon::where('shop_id', $user->shop_id)
-                        ->where('code', $request->code)
-                        ->first();
+            ->where('code', $request->code)
+            ->first();
 
-        if (!$coupon) {
+        if (! $coupon) {
             return response()->json(['message' => 'الكوبون غير صالح', 'valid' => false], 404);
         }
 
-        if (!$coupon->isValidForUser($user->id, $request->amount)) {
+        if (! $coupon->isValidForUser($user->id, $request->amount)) {
             return response()->json(['message' => 'الشروط غير مستوفاة لهذا الكوبون', 'valid' => false], 422);
         }
 
@@ -45,22 +44,23 @@ class CouponController extends Controller
             'code' => $coupon->code,
             'type' => $coupon->type,
             'value' => $coupon->value,
-            'discount_amount' => round($discount, 2)
+            'discount_amount' => round($discount, 2),
         ]);
     }
 
     // Shop Admin: CRUD for coupons
     public function index(Request $request)
     {
-        if (!$request->user()->isShopAdmin()) {
+        if (! $request->user()->isShopAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         return Coupon::where('shop_id', $request->user()->shop_id)->latest()->get();
     }
 
     public function store(Request $request)
     {
-        if (!$request->user()->isShopAdmin()) {
+        if (! $request->user()->isShopAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -70,24 +70,25 @@ class CouponController extends Controller
             'value' => 'required|numeric',
             'min_purchase' => 'nullable|numeric',
             'max_uses' => 'nullable|integer',
-            'valid_until' => 'nullable|date'
+            'valid_until' => 'nullable|date',
         ]);
 
         $coupon = Coupon::create([
             'shop_id' => $request->user()->shop_id,
-            ...$validated
+            ...$validated,
         ]);
 
         return response()->json($coupon, 201);
     }
-    
+
     public function destroy(Request $request, $id)
     {
-        if (!$request->user()->isShopAdmin()) {
+        if (! $request->user()->isShopAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $coupon = Coupon::where('shop_id', $request->user()->shop_id)->findOrFail($id);
         $coupon->delete();
+
         return response()->json(['message' => 'Deleted']);
     }
 }

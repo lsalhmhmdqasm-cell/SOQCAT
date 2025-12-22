@@ -13,7 +13,7 @@ class DeliveryPerson extends Model
         'shop_id',
         'name',
         'phone',
-        'status'
+        'status',
     ];
 
     /**

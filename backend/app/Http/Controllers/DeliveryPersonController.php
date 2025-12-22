@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\DeliveryPerson;
+use Illuminate\Http\Request;
 
 class DeliveryPersonController extends Controller
 {
@@ -34,14 +34,14 @@ class DeliveryPersonController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
-            'status' => 'nullable|in:available,busy,offline'
+            'status' => 'nullable|in:available,busy,offline',
         ]);
 
         $deliveryPerson = DeliveryPerson::create([
             'shop_id' => $request->user()->shop_id,
             'name' => $validated['name'],
             'phone' => $validated['phone'],
-            'status' => $validated['status'] ?? 'available'
+            'status' => $validated['status'] ?? 'available',
         ]);
 
         return response()->json($deliveryPerson, 201);
@@ -60,7 +60,7 @@ class DeliveryPersonController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'required|in:available,busy,offline'
+            'status' => 'required|in:available,busy,offline',
         ]);
 
         $deliveryPerson->update($validated);

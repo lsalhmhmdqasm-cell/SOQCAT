@@ -12,18 +12,19 @@ class Client extends Model
         'email',
         'phone',
         'domain',
+        'shop_id',
         'logo_url',
         'primary_color',
         'secondary_color',
         'status',
         'subscription_type',
         'subscription_start',
-        'subscription_end'
+        'subscription_end',
     ];
 
     protected $casts = [
         'subscription_start' => 'date',
-        'subscription_end' => 'date'
+        'subscription_end' => 'date',
     ];
 
     public function subscription()
@@ -36,10 +37,15 @@ class Client extends Model
         return $this->hasMany(SupportTicket::class);
     }
 
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
+    }
+
     public function isActive()
     {
-        return $this->status === 'active' && 
-               $this->subscription_end && 
+        return $this->status === 'active' &&
+               $this->subscription_end &&
                $this->subscription_end->isFuture();
     }
 

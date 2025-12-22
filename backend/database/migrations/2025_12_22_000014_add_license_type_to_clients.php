@@ -11,10 +11,10 @@ return new class extends Migration
         Schema::table('clients', function (Blueprint $table) {
             // إضافة نوع الترخيص
             $table->enum('license_type', ['subscription', 'lifetime'])->default('subscription')->after('subscription_type');
-            
+
             // المبلغ المدفوع (للـ lifetime)
             $table->decimal('paid_amount', 10, 2)->nullable()->after('license_type');
-            
+
             // تاريخ الدفع
             $table->date('payment_date')->nullable()->after('paid_amount');
         });

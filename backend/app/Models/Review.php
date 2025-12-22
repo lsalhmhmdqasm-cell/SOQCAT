@@ -10,11 +10,11 @@ class Review extends Model
         'product_id',
         'user_id',
         'rating',
-        'comment'
+        'comment',
     ];
 
     protected $casts = [
-        'rating' => 'integer'
+        'rating' => 'integer',
     ];
 
     /**

@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\PaymentMethod;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentMethodController extends Controller
 {
@@ -11,9 +12,9 @@ class PaymentMethodController extends Controller
     public function index($shopId)
     {
         $methods = PaymentMethod::where('shop_id', $shopId)
-                                ->where('is_active', true)
-                                ->get();
-        
+            ->where('is_active', true)
+            ->get();
+
         return response()->json($methods);
     }
 
@@ -25,6 +26,7 @@ class PaymentMethodController extends Controller
         }
 
         $methods = PaymentMethod::where('shop_id', $request->user()->shop_id)->get();
+
         return response()->json($methods);
     }
 
@@ -35,6 +37,8 @@ class PaymentMethodController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $this->authorize('create', PaymentMethod::class);
+
         $validated = $request->validate([
             'type' => 'required|in:bank_transfer,e_wallet',
             'bank_name' => 'required_if:type,bank_transfer',
@@ -44,12 +48,19 @@ class PaymentMethodController extends Controller
             'e_wallet_network' => 'required_if:type,e_wallet',
             'wallet_name' => 'required_if:type,e_wallet',
             'wallet_number' => 'required_if:type,e_wallet',
-            'instructions' => 'nullable|string'
+            'instructions' => 'nullable|string',
         ]);
 
         $method = PaymentMethod::create([
             'shop_id' => $request->user()->shop_id,
-            ...$validated
+            ...$validated,
+        ]);
+
+        Log::info('admin_payment_method_created', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'payment_method_id' => $method->id,
+            'type' => $method->type,
         ]);
 
         return response()->json($method, 201);
@@ -63,9 +74,32 @@ class PaymentMethodController extends Controller
         }
 
         $method = PaymentMethod::where('shop_id', $request->user()->shop_id)
-                               ->findOrFail($id);
+            ->findOrFail($id);
 
-        $method->update($request->all());
+        $this->authorize('update', $method);
+
+        $validated = $request->validate([
+            'type' => 'sometimes|in:bank_transfer,e_wallet',
+            'bank_name' => 'sometimes|required_if:type,bank_transfer|nullable|string',
+            'account_name' => 'sometimes|required_if:type,bank_transfer|nullable|string',
+            'account_number' => 'sometimes|required_if:type,bank_transfer|nullable|string',
+            'branch' => 'sometimes|nullable|string',
+            'e_wallet_network' => 'sometimes|required_if:type,e_wallet|nullable|string',
+            'wallet_name' => 'sometimes|required_if:type,e_wallet|nullable|string',
+            'wallet_number' => 'sometimes|required_if:type,e_wallet|nullable|string',
+            'instructions' => 'sometimes|nullable|string',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $method->update($validated);
+
+        Log::info('admin_payment_method_updated', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'payment_method_id' => $method->id,
+            'changes' => array_keys($validated),
+        ]);
+
         return response()->json($method);
     }
 
@@ -77,9 +111,19 @@ class PaymentMethodController extends Controller
         }
 
         $method = PaymentMethod::where('shop_id', $request->user()->shop_id)
-                               ->findOrFail($id);
+            ->findOrFail($id);
 
-        $method->update(['is_active' => !$method->is_active]);
+        $this->authorize('update', $method);
+
+        $method->update(['is_active' => ! $method->is_active]);
+
+        Log::info('admin_payment_method_toggled', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'payment_method_id' => $method->id,
+            'is_active' => $method->is_active,
+        ]);
+
         return response()->json($method);
     }
 
@@ -91,9 +135,18 @@ class PaymentMethodController extends Controller
         }
 
         $method = PaymentMethod::where('shop_id', $request->user()->shop_id)
-                               ->findOrFail($id);
+            ->findOrFail($id);
+
+        $this->authorize('delete', $method);
 
         $method->delete();
+
+        Log::info('admin_payment_method_deleted', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'payment_method_id' => $method->id,
+        ]);
+
         return response()->json(['message' => 'Deleted']);
     }
 }

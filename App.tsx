@@ -2,8 +2,8 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
 import { Product, CartItem, User } from './types';
-import { mockApi } from './services/mockApi';
 import { AdminLayout } from './components/AdminLayout';
+import { SuperAdminLayout } from './components/SuperAdminLayout';
 import { Toast, ToastType } from './components/Toast';
 import { LoginRequired } from './components/LoginRequired';
 
@@ -15,7 +15,6 @@ const Checkout = React.lazy(() => import('./pages/Checkout').then(module => ({ d
 const OrderHistory = React.lazy(() => import('./pages/OrderHistory').then(module => ({ default: module.OrderHistory })));
 const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Profile = React.lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
-const TrackOrder = React.lazy(() => import('./pages/TrackOrder').then(module => ({ default: module.TrackOrder })));
 const Notifications = React.lazy(() => import('./pages/Notifications').then(module => ({ default: module.Notifications })));
 const OrderTracking = React.lazy(() => import('./pages/OrderTracking').then(module => ({ default: module.OrderTracking })));
 const Support = React.lazy(() => import('./pages/Support').then(module => ({ default: module.Support })));
@@ -38,6 +37,10 @@ const SupportTickets = React.lazy(() => import('./pages/admin/SupportTickets').t
 const UpdatesManager = React.lazy(() => import('./pages/admin/UpdatesManager').then(module => ({ default: module.UpdatesManager })));
 // const ApiDocs = React.lazy(() => import('./pages/admin/ApiDocs').then(module => ({ default: module.ApiDocs })));
 
+const SuperAdminDashboard = React.lazy(() => import('./pages/super-admin/SuperAdminDashboard').then(module => ({ default: module.SuperAdminDashboard })));
+const SuperAdminClientManager = React.lazy(() => import('./pages/super-admin/ClientManager').then(module => ({ default: module.ClientManager })));
+const SuperAdminSupportTickets = React.lazy(() => import('./pages/super-admin/SupportTickets').then(module => ({ default: module.SupportTickets })));
+const SuperAdminUpdatesManager = React.lazy(() => import('./pages/super-admin/UpdatesManager').then(module => ({ default: module.UpdatesManager })));
 
 // Loading Spinner for Lazy Components
 const PageLoader = () => (
@@ -58,8 +61,8 @@ const SplashScreen = ({ onFinished }: { onFinished: () => void }) => {
       <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-xl animate-bounce">
         <span className="text-4xl">🍃</span>
       </div>
-      <h1 className="text-3xl font-bold mb-2">سوق بن عبود للقات</h1>
-      <p className="text-green-100 text-sm">مأرب - أجود أنواع القات</p>
+      <h1 className="text-3xl font-bold mb-2">منصة قات شوب</h1>
+      <p className="text-green-100 text-sm">منصة التطبيقات والباقات لأصحاب المحلات</p>
 
       <div className="absolute bottom-6 text-center opacity-80">
         <p className="text-[10px] text-green-200">تطوير وبرمجة</p>
@@ -120,15 +123,19 @@ const AppContent = () => {
     // Just show toast and navigate
     showToast(`مرحباً بك ${loggedInUser.name}`, 'success');
 
-    if (loggedInUser.isAdmin) {
+    const state = location.state as { from?: string };
+    if (loggedInUser.role === 'super_admin') {
+      navigate('/super-admin/dashboard');
+      return;
+    }
+    if (loggedInUser.role === 'shop_admin' || loggedInUser.isAdmin) {
       navigate('/admin/dashboard');
+      return;
+    }
+    if (state?.from) {
+      navigate(state.from);
     } else {
-      const state = location.state as { from?: string };
-      if (state?.from) {
-        navigate(state.from);
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     }
   };
 
@@ -152,6 +159,11 @@ const AppContent = () => {
     return <SplashScreen onFinished={() => setLoadingSplash(false)} />;
   }
 
+  // ... imports
+  const PlatformLanding = React.lazy(() => import('./pages/PlatformLanding').then(module => ({ default: module.PlatformLanding })));
+
+  // ... (in AppContent)
+
   // Define routes where BottomNav should be hidden to avoid overlap
   const hideNavRoutes = [
     '/cart',
@@ -159,63 +171,80 @@ const AppContent = () => {
     '/login',
     '/product', // Matches /product/:id
     '/track',    // Matches /track/:id
+    '/order-tracking', // Matches /order-tracking/:trackingNumber
     '/notifications',
-    '/support'
+    '/support',
+    '/super-admin',
+    '/' // Hide Nav on Landing Page
   ];
-  const shouldShowNav = !hideNavRoutes.some(route => location.pathname.startsWith(route));
+  // Ensure we check exact match for '/' or prefix for others
+  const shouldShowNav = !hideNavRoutes.some(route => {
+    if (route === '/') return location.pathname === '/';
+    return location.pathname.startsWith(route);
+  });
 
-  // --- ADMIN VIEW ---
-  if (user?.isAdmin) {
-    return (
-      <>
-        {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-        <AdminLayout
-          activeTab={activeAdminTab}
-          onNavigate={(path) => {
-            setActiveAdminTab(path);
-            navigate(`/admin/${path}`);
-          }}
-          onLogout={handleLogout}
-        >
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/admin/dashboard" />} />
-              <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/products" element={<ProductManager />} />
-              <Route path="/admin/categories" element={<CategoryManager />} />
-              <Route path="/admin/orders" element={<OrderManager />} />
-              <Route path="/admin/delivery" element={<DeliveryManager />} />
-              <Route path="/admin/users" element={<UserManager />} />
-              <Route path="/admin/clients" element={<ClientManager />} />
-              <Route path="/admin/tickets" element={<SupportTickets />} />
-              <Route path="/admin/updates" element={<UpdatesManager />} />
-              <Route path="/admin/settings" element={<SettingsManager />} />
-              <Route path="/admin/payments" element={<PaymentSettings />} />
-              <Route path="/admin/stocks" element={<StockManagement />} />
-              <Route path="/admin/coupons" element={<CouponManager />} />
-              <Route path="/admin/profile" element={
-                <Profile user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />
-              } />
-              <Route path="*" element={<Navigate to="/admin/dashboard" />} />
-            </Routes>
-          </Suspense>
-        </AdminLayout>
-      </>
-    );
-  }
+  // ... (Admin View logic remains same)
 
   // --- MOBILE USER / GUEST VIEW ---
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  const isWideLayout = location.pathname === '/' || location.pathname.startsWith('/super-admin');
   return (
-    <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden">
+    <div className={`${isWideLayout ? 'mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden' : 'max-w-md mx-auto bg-gray-50 min-h-screen relative shadow-2xl overflow-hidden'}`}>
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* SaaS Landing Page is now Home */}
+          <Route path="/" element={<PlatformLanding />} />
+
+          {/* Login for Admin */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
 
-          <Route path="/" element={<Home onProductClick={(p) => navigate(`/product/${p.id}`)} addToCart={(p) => { addToCart(p); showToast('تمت الإضافة للسلة'); }} />} />
+          {/* Super Admin Routes */}
+          <Route path="/super-admin/dashboard" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminDashboard />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/clients" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminClientManager />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/tickets" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminSupportTickets />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/updates" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminUpdatesManager />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+
+          {/* Shop Admin Routes */}
+          <Route path="/admin/dashboard" element={
+            user && (user.role === 'shop_admin' || user.isAdmin) ? (
+              <AdminLayout activeTab={activeAdminTab} onNavigate={(id) => navigate(`/admin/${id}`)} onLogout={handleLogout}>
+                <AdminDashboard />
+              </AdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+
+          {/* Demo Store Routes (Optional: moved to /demo if needed, or kept accessible via direct link for testing) 
+              For now, we keep them accessible but deeper, or just remove Home route. 
+              Let's Keep 'Home' accessible via /store for demo purposes? 
+              User asked specifically for Main Page to be Landing. 
+          */}
+          <Route path="/store" element={<Home onProductClick={(p) => navigate(`/product/${p.id}`)} addToCart={(p) => { addToCart(p); showToast('تمت الإضافة للسلة'); }} />} />
 
           <Route path="/product/:id" element={
             <ProductDetails
@@ -230,13 +259,12 @@ const AppContent = () => {
               isGuest={!user}
               onUpdateQuantity={updateCartQuantity}
               onRemove={(id) => { removeFromCart(id); showToast('تم الحذف', 'warning'); }}
-              onBack={() => navigate('/')}
+              onBack={() => navigate('/store')} // Back to Store
               onCheckout={() => {
                 if (user) {
                   navigate('/checkout');
                 } else {
-                  navigate('/login', { state: { from: '/checkout' } });
-                  showToast('يرجى تسجيل الدخول لإتمام الطلب', 'info');
+                  showToast('هذا متجر تجريبي. الشراء يتم داخل تطبيق كل محل.', 'info');
                 }
               }}
             />
@@ -258,7 +286,10 @@ const AppContent = () => {
           } />
 
           <Route path="/track/:id" element={
-            user ? <TrackOrder /> : <Navigate to="/login" />
+            user ? <OrderTracking /> : <Navigate to="/login" />
+          } />
+          <Route path="/order-tracking/:trackingNumber" element={
+            user ? <OrderTracking /> : <Navigate to="/login" />
           } />
 
           <Route path="/loyalty" element={
@@ -278,7 +309,8 @@ const AppContent = () => {
         </Routes>
       </Suspense>
 
-      {shouldShowNav && (
+      {/* Only show BottomNav if inside the Store part (e.g. /store, /orders) AND not in hidden routes */}
+      {shouldShowNav && location.pathname !== '/' && (
         <BottomNav cartCount={cartCount} onNavigate={navigate} isAdmin={false} />
       )}
     </div>

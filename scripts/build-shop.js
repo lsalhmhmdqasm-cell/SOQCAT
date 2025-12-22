@@ -106,6 +106,44 @@ export default config;
   fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2));
   log('✓ تم تحديث manifest.json', 'green');
 
+  // 6. تحديث إعدادات Android (applicationId, version, app_name)
+  log('\n▶ تحديث إعدادات Android...', 'blue');
+  const gradlePath = path.join('android', 'app', 'build', 'outputs', 'apk'); // للتأكد من وجود مجلدات البناء لاحقاً
+  const appGradlePath = path.join('android', 'app', 'build.gradle');
+  if (fs.existsSync(appGradlePath)) {
+    let gradleContent = fs.readFileSync(appGradlePath, 'utf8');
+    gradleContent = gradleContent.replace(/applicationId "[^"]*"/, `applicationId "${config.appId}"`);
+    gradleContent = gradleContent.replace(/versionCode \d+/, `versionCode ${config.versionCode}`);
+    gradleContent = gradleContent.replace(/versionName "[^"]*"/, `versionName "${config.versionName}"`);
+    fs.writeFileSync(appGradlePath, gradleContent);
+  } else {
+    log('⚠ ملف build.gradle غير موجود، سيتم المتابعة بدون تحديث applicationId', 'yellow');
+  }
+  // ضبط sdk.dir في local.properties إذا كان متاحاً من البيئة (للـ CI)
+  const androidSdkDir = process.env.ANDROID_SDK_ROOT || process.env.ANDROID_HOME;
+  const localPropsPath = path.join('android', 'local.properties');
+  if (androidSdkDir) {
+    const escapeProp = (p) => p.replace(/\\/g, '\\\\').replace(/:/g, '\\:');
+    const sdkLine = `sdk.dir=${escapeProp(androidSdkDir)}`;
+    try {
+      fs.writeFileSync(localPropsPath, sdkLine);
+      log('✓ تم ضبط sdk.dir في android/local.properties', 'green');
+    } catch (e) {
+      log('⚠ فشل ضبط android/local.properties، سيتم الاعتماد على الإعدادات الحالية', 'yellow');
+    }
+  } else {
+    log('⚠ لم يتم العثور على ANDROID_SDK_ROOT/ANDROID_HOME في البيئة، سيتم استخدام local.properties الافتراضي', 'yellow');
+  }
+  const stringsPath = path.join('android', 'app', 'src', 'main', 'res', 'values', 'strings.xml');
+  if (fs.existsSync(stringsPath)) {
+    let stringsContent = fs.readFileSync(stringsPath, 'utf8');
+    stringsContent = stringsContent.replace(/<string name="app_name">.*?<\/string>/, `<string name="app_name">${config.appName}</string>`);
+    fs.writeFileSync(stringsPath, stringsContent);
+  } else {
+    log('⚠ ملف strings.xml غير موجود، سيتم المتابعة بدون تحديث اسم التطبيق', 'yellow');
+  }
+  log('✓ تم تحديث إعدادات Android', 'green');
+
   // 6. بناء التطبيق
   exec('npm run build', 'بناء Frontend');
 
@@ -114,8 +152,19 @@ export default config;
 
   // 8. بناء Android APK
   log('\n▶ بناء Android APK...', 'blue');
+  try {
+    const gradleHome = path.join(__dirname, '..', '.gradle');
+    process.env.GRADLE_USER_HOME = gradleHome;
+    if (!fs.existsSync(gradleHome)) {
+      fs.mkdirSync(gradleHome, { recursive: true });
+    }
+    log(`GRADLE_USER_HOME=${gradleHome}`, 'blue');
+  } catch (e) {
+    log('⚠ لم يتمكن السكربت من إنشاء مجلد GRADLE_USER_HOME، سيُستخدم الإعداد الافتراضي', 'yellow');
+  }
   process.chdir('android');
-  exec('./gradlew assembleRelease', 'بناء APK');
+  const gradleCmd = process.platform === 'win32' ? '.\\gradlew.bat assembleRelease' : './gradlew assembleRelease';
+  exec(gradleCmd, 'بناء APK');
   process.chdir('..');
 
   // 9. نسخ APK إلى مجلد الإخراج
@@ -124,9 +173,49 @@ export default config;
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const apkSource = path.join('android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk');
+  const releaseDir = path.join('android', 'app', 'build', 'outputs', 'apk', 'release');
+  let candidates = [];
+  if (fs.existsSync(releaseDir)) {
+    candidates = candidates.concat(
+      fs.readdirSync(releaseDir)
+        .filter(f => f.toLowerCase().endsWith('.apk'))
+        .map(f => path.join(releaseDir, f))
+    );
+  }
+  if (candidates.length === 0) {
+    const apkBaseDir = path.join('android', 'app', 'build', 'outputs', 'apk');
+    if (fs.existsSync(apkBaseDir)) {
+      const entries = fs.readdirSync(apkBaseDir).map(name => path.join(apkBaseDir, name));
+      const dirs = entries.filter(p => {
+        try { return fs.lstatSync(p).isDirectory(); } catch { return false; }
+      });
+      for (const d of dirs) {
+        try {
+          const apks = fs.readdirSync(d)
+            .filter(f => f.toLowerCase().endsWith('.apk'))
+            .map(f => path.join(d, f));
+          candidates = candidates.concat(apks);
+        } catch {}
+      }
+      try {
+        const baseApks = fs.readdirSync(apkBaseDir)
+          .filter(f => f.toLowerCase().endsWith('.apk'))
+          .map(f => path.join(apkBaseDir, f));
+        candidates = candidates.concat(baseApks);
+      } catch {}
+    }
+  }
+  if (candidates.length === 0) {
+    throw new Error('لم يتم العثور على ملف APK داخل android/app/build/outputs/apk/');
+  }
+  const apkSource = candidates.sort((a, b) => {
+    try {
+      return (fs.statSync(b).mtimeMs || 0) - (fs.statSync(a).mtimeMs || 0);
+    } catch {
+      return 0;
+    }
+  })[0];
   const apkDest = path.join(outputDir, `${config.appName.replace(/\s+/g, '_')}_v${config.versionName}.apk`);
-  
   fs.copyFileSync(apkSource, apkDest);
   log(`✓ تم نسخ APK إلى: ${apkDest}`, 'green');
 

@@ -7,12 +7,13 @@ interface ShopContextType {
     user: User | null;
     cart: CartItem[];
     isLoading: boolean;
-    login: (user: User, token: string) => void;
+    login: (user: User) => void;
     logout: () => void;
     addToCart: (product: Product) => void;
     updateCartQuantity: (productId: string, delta: number) => void;
     removeFromCart: (productId: string) => void;
     clearCart: () => void;
+    updateShopSettings: (patch: Partial<AppSettings> & { primaryColor?: string; secondaryColor?: string; features?: Record<string, any> }) => void;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -23,12 +24,12 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [shopSettings, setShopSettings] = useState<AppSettings>({
-        shopName: 'سوق بن عبود للقات',
+        shopName: 'منصة قات شوب',
         logo: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
         deliveryFee: 1000,
     });
 
-    // Load shop configuration from shops-config.json
+    // Load shop configuration from shops-config.json, then override from backend if available
     useEffect(() => {
         fetch('/shops-config.json')
             .then(res => res.json())
@@ -53,7 +54,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
                 })();
 
                 setShopSettings({
-                    shopName: config?.shopName || 'سوق بن عبود للقات',
+                    shopName: config?.shopName || 'منصة قات شوب',
                     logo: config?.logo || 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
                     deliveryFee: config?.deliveryFee || 1000,
                 });
@@ -69,30 +70,55 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
                     document.documentElement.style.setProperty('--secondary-color', config.secondaryColor);
                 }
 
-                // Update page title
-                document.title = config?.shopName || 'متاجر بن عبود للقات';
+                document.title = config?.shopName || 'منصة قات شوب';
             })
             .catch(err => console.error('Failed to load shop config:', err));
+    }, []);
+
+    // Try to load dynamic settings from backend
+    useEffect(() => {
+        const envShopId = import.meta.env.VITE_SHOP_ID;
+        const tryLoad = async () => {
+            try {
+                if (envShopId) {
+                    const res = await api.get(`/shops/${envShopId}/settings`);
+                    const cfg = res.data;
+                    localStorage.setItem('shopConfig', JSON.stringify({ ...(JSON.parse(localStorage.getItem('shopConfig') || '{}')), ...cfg }));
+                    setShopSettings({
+                        shopName: cfg.shopName || shopSettings.shopName,
+                        logo: cfg.logo || shopSettings.logo,
+                        deliveryFee: typeof cfg.deliveryFee === 'number' ? cfg.deliveryFee : shopSettings.deliveryFee,
+                    });
+                    if (cfg.primaryColor) {
+                        document.documentElement.style.setProperty('--primary-color', cfg.primaryColor);
+                    }
+                    if (cfg.secondaryColor) {
+                        document.documentElement.style.setProperty('--secondary-color', cfg.secondaryColor);
+                    }
+                    if (cfg.shopName) {
+                        document.title = cfg.shopName;
+                    }
+                }
+            } catch (e) {
+                // ignore if backend not available
+            }
+        };
+        tryLoad();
     }, []);
 
     // Init
     useEffect(() => {
         const initApp = async () => {
-            // 1. Load User
-            const token = localStorage.getItem('token');
-            const savedUser = localStorage.getItem('user'); // Basic persistence
-
-            if (token && savedUser) {
-                setUser(JSON.parse(savedUser));
-                // Optional: Verify token with /me endpoint
-                try {
-                    const res = await api.get('/me');
-                    setUser(res.data);
-                    localStorage.setItem('user', JSON.stringify(res.data));
-                } catch (e) {
-                    console.error('Session expired');
-                    logout();
-                }
+            try {
+                const res = await api.get('/me');
+                const mapped = { 
+                    ...res.data, 
+                    isAdmin: res.data?.isAdmin ?? (res.data?.role === 'shop_admin' || res.data?.role === 'super_admin')
+                };
+                setUser(mapped);
+                localStorage.setItem('user', JSON.stringify(mapped));
+            } catch (e) {
+                setUser(null);
             }
 
             // 2. Load Cart
@@ -113,15 +139,18 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     }, [cart]);
 
     // Actions
-    const login = (userData: User, token: string) => {
-        setUser(userData);
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(userData));
+    const login = (userData: User) => {
+        const mapped = { 
+            ...userData, 
+            isAdmin: userData?.isAdmin ?? (userData?.role === 'shop_admin' || userData?.role === 'super_admin')
+        };
+        setUser(mapped);
+        localStorage.setItem('user', JSON.stringify(mapped));
     };
 
     const logout = () => {
+        api.post('/logout').catch(() => {});
         setUser(null);
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
     };
 
@@ -150,6 +179,41 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
     const clearCart = () => setCart([]);
 
+    const updateShopSettings = (patch: Partial<AppSettings> & { primaryColor?: string; secondaryColor?: string; features?: Record<string, any> }) => {
+        try {
+            const currentStr = localStorage.getItem('shopConfig');
+            const current = currentStr ? JSON.parse(currentStr) : {};
+            const next = {
+                ...current,
+                shopName: patch.shopName ?? current.shopName,
+                logo: patch.logo ?? current.logo,
+                deliveryFee: patch.deliveryFee ?? current.deliveryFee,
+                primaryColor: patch.primaryColor ?? current.primaryColor,
+                secondaryColor: patch.secondaryColor ?? current.secondaryColor,
+                features: { ...(current.features || {}), ...(patch.features || {}) },
+            };
+            localStorage.setItem('shopConfig', JSON.stringify(next));
+
+            setShopSettings({
+                shopName: next.shopName || shopSettings.shopName,
+                logo: next.logo || shopSettings.logo,
+                deliveryFee: typeof next.deliveryFee === 'number' ? next.deliveryFee : shopSettings.deliveryFee,
+            });
+
+            if (next.primaryColor) {
+                document.documentElement.style.setProperty('--primary-color', next.primaryColor);
+            }
+            if (next.secondaryColor) {
+                document.documentElement.style.setProperty('--secondary-color', next.secondaryColor);
+            }
+            if (next.shopName) {
+                document.title = next.shopName;
+            }
+        } catch (e) {
+            console.error('Failed to update shop settings', e);
+        }
+    };
+
     return (
         <ShopContext.Provider value={{
             user,
@@ -161,7 +225,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
             addToCart,
             updateCartQuantity,
             removeFromCart,
-            clearCart
+            clearCart,
+            updateShopSettings
         }}>
             {children}
         </ShopContext.Provider>

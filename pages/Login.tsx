@@ -12,9 +12,7 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const navigate = useNavigate();
-  const { login } = useShop(); // Use context login
-  const [isRegister, setIsRegister] = useState(false);
-  const [name, setName] = useState('');
+  const { login } = useShop();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,47 +20,32 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || !password) return;
-    if (isRegister && !name) return;
-
     setLoading(true);
     try {
-      let response;
-      if (isRegister) {
-        response = await api.post('/register', { name, email: `${phone}@qatshop.com`, phone, password });
-      } else {
-        response = await api.post('/login', { email: `${phone}@qatshop.com`, password });
+      const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
+      await fetch(`${backendBase}/sanctum/csrf-cookie`, { credentials: 'include' });
+      const response = await api.post('/login', { email: `${phone}@qatshop.com`, password });
+      const { data } = response.data;
+      if (data?.role !== 'super_admin') {
+        alert('هذه الصفحة مخصصة لدخول المشرف العام فقط. يرجى الدخول من تطبيق المتجر الخاص بكم.');
+        return;
       }
-
-      const { data, access_token } = response.data;
-
-      // Update Context
-      login(data, access_token);
-
-      // Legacy prop fallback (for App.tsx logic if needed, but context handles state now)
+      login(data);
       onLogin(data);
-
     } catch (err: any) {
-      console.error(err);
-      alert(err.response?.data?.message || (isRegister ? "فشل التسجيل" : "فشل تسجيل الدخول"));
+      alert(err.response?.data?.message || 'فشل تسجيل الدخول');
     } finally {
       setLoading(false);
     }
   };
 
-  const fillCredentials = (type: 'admin' | 'user') => {
-    setIsRegister(false);
-    if (type === 'admin') {
-      setPhone('admin');
-      setPassword('admin');
-    } else {
-      setPhone('777000000');
-      setPassword('123456');
-    }
+  const fillAdmin = () => {
+    setPhone('admin');
+    setPassword('admin');
   };
 
   return (
     <div className="min-h-screen bg-green-700 flex flex-col items-center justify-center p-6 text-white relative animate-slide-down">
-      {/* Close Button to return to guest mode */}
       <button
         onClick={() => navigate(-1)}
         className="absolute top-6 right-6 bg-white/20 hover:bg-white/30 p-2 rounded-full backdrop-blur-sm transition-colors"
@@ -71,33 +54,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       </button>
 
       <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold mb-2">متجر القات</h1>
-        <p className="text-green-100">سجل دخولك لإتمام الطلب والمتابعة</p>
+        <h1 className="text-4xl font-bold mb-2">دخول المشرف العام</h1>
+        <p className="text-green-100">هذه الصفحة مخصصة لمالك المنصة فقط</p>
       </div>
 
       <div className="w-full max-w-sm bg-white rounded-2xl p-8 shadow-2xl relative">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          {isRegister ? 'إنشاء حساب جديد' : 'تسجيل الدخول'}
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">تسجيل الدخول</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isRegister && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
-                placeholder="أدخل اسمك"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف</label>
             <input
               type="tel"
               className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
-              placeholder="77xxxxxxx"
+              placeholder="admin"
               dir="ltr"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -115,41 +84,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
           <Button fullWidth type="submit" isLoading={loading} className="mt-4 py-3">
-            {isRegister ? 'تسجيل حساب' : 'دخول'}
+            دخول
           </Button>
         </form>
 
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500">
-            {isRegister ? 'لديك حساب بالفعل؟' : 'ليس لديك حساب؟'}{' '}
-            <span
-              onClick={() => setIsRegister(!isRegister)}
-              className="text-green-600 font-bold cursor-pointer select-none"
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <p className="text-xs text-center text-gray-400 mb-3">تجربة سريعة:</p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={fillAdmin}
+              className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg transition-colors"
             >
-              {isRegister ? 'سجل دخولك' : 'سجل الآن'}
-            </span>
-          </p>
-        </div>
-
-        {!isRegister && (
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <p className="text-xs text-center text-gray-400 mb-3">خيارات التجربة السريعة:</p>
-            <div className="flex gap-2 justify-center">
-              <button
-                onClick={() => fillCredentials('user')}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                بيانات مستخدم
-              </button>
-              <button
-                onClick={() => fillCredentials('admin')}
-                className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                بيانات مدير
-              </button>
-            </div>
+              بيانات المشرف العام
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="mt-8 text-center opacity-60">

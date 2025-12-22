@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('related_id')->nullable(); // order_id, product_id, etc.
             $table->boolean('is_read')->default(false);
             $table->timestamps();
-            
+
             // Index for faster queries
             $table->index(['user_id', 'is_read']);
         });

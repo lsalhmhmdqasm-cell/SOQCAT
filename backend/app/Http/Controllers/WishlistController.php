@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Wishlist;
+use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
@@ -33,20 +33,21 @@ class WishlistController extends Controller
         if ($existing) {
             // Remove from wishlist
             $existing->delete();
+
             return response()->json([
                 'message' => 'Removed from wishlist',
-                'is_favorite' => false
+                'is_favorite' => false,
             ]);
         } else {
             // Add to wishlist
             Wishlist::create([
                 'user_id' => $userId,
-                'product_id' => $productId
+                'product_id' => $productId,
             ]);
 
             return response()->json([
                 'message' => 'Added to wishlist',
-                'is_favorite' => true
+                'is_favorite' => true,
             ]);
         }
     }

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\SystemUpdate;
 use App\Models\Client;
+use App\Models\SystemUpdate;
+use Illuminate\Http\Request;
 
 class UpdateController extends Controller
 {
@@ -16,6 +16,7 @@ class UpdateController extends Controller
         }
 
         $updates = SystemUpdate::latest('release_date')->paginate(20);
+
         return response()->json($updates);
     }
 
@@ -31,7 +32,7 @@ class UpdateController extends Controller
             'description' => 'required|string',
             'changelog' => 'nullable|string',
             'release_date' => 'required|date',
-            'is_critical' => 'boolean'
+            'is_critical' => 'boolean',
         ]);
 
         $update = SystemUpdate::create($validated);
@@ -67,7 +68,7 @@ class UpdateController extends Controller
 
         return response()->json([
             'message' => 'Update deployed',
-            'applied_to_count' => count($clientIds)
+            'applied_to_count' => count($clientIds),
         ]);
     }
 
@@ -85,7 +86,7 @@ class UpdateController extends Controller
             'total_clients' => $totalClients,
             'applied_count' => $appliedCount,
             'pending_count' => $totalClients - $appliedCount,
-            'percentage' => $totalClients > 0 ? round(($appliedCount / $totalClients) * 100, 2) : 0
+            'percentage' => $totalClients > 0 ? round(($appliedCount / $totalClients) * 100, 2) : 0,
         ]);
     }
 }

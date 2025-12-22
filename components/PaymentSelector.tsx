@@ -17,7 +17,7 @@ interface PaymentMethod {
 interface PaymentSelectorProps {
     totalAmount: number;
     onPaymentSelect: (method: string, details?: any) => void;
-    shopId: number;
+    shopId: string | number;
 }
 
 export const PaymentSelector: React.FC<PaymentSelectorProps> = ({ totalAmount, onPaymentSelect, shopId }) => {

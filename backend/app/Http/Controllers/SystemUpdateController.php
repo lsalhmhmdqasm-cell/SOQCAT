@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\SystemUpdate;
+use Illuminate\Http\Request;
 
 class SystemUpdateController extends Controller
 {
@@ -19,17 +19,18 @@ class SystemUpdateController extends Controller
         }
 
         $validated = $request->validate([
-             'version' => 'required|string',
-             'title' => 'required|string',
-             'description' => 'required|string',
-             'type' => 'required|in:feature,bugfix,security,maintenance',
-             'release_date' => 'required|date'
+            'version' => 'required|string',
+            'title' => 'required|string',
+            'description' => 'required|string',
+            'type' => 'required|in:feature,bugfix,security,maintenance',
+            'release_date' => 'required|date',
         ]);
 
         $update = SystemUpdate::create($validated);
+
         return response()->json($update, 201);
     }
-    
+
     public function destroy(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -37,6 +38,7 @@ class SystemUpdateController extends Controller
         }
         $update = SystemUpdate::findOrFail($id);
         $update->delete();
+
         return response()->json(['message' => 'Deleted']);
     }
 }

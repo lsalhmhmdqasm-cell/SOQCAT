@@ -23,7 +23,7 @@ class User extends Authenticatable
         'password',
         'phone',
         'role', // super_admin, shop_admin, customer
-        'shop_id'
+        'shop_id',
     ];
 
     /**

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Notification;
+use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
@@ -22,7 +22,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'notifications' => $notifications,
-            'unread_count' => $unreadCount
+            'unread_count' => $unreadCount,
         ]);
     }
 
@@ -61,7 +61,7 @@ class NotificationController extends Controller
             'title' => $title,
             'body' => $body,
             'type' => $type,
-            'related_id' => $relatedId
+            'related_id' => $relatedId,
         ]);
     }
 }

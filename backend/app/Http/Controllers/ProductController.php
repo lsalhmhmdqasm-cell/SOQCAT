@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        // Filter by Shop ID if provided, otherwise show all active
         $query = Product::where('is_active', true);
 
         if ($request->has('shop_id')) {
@@ -20,7 +21,15 @@ class ProductController extends Controller
             $query->where('category', $request->category);
         }
 
-        return response()->json($query->get());
+        $shopKey = $request->has('shop_id') ? (string) $request->shop_id : 'all';
+        $catKey = $request->has('category') ? (string) $request->category : 'none';
+        $key = 'products:list:shop:'.$shopKey.':cat:'.$catKey;
+
+        $data = Cache::remember($key, 60, function () use ($query) {
+            return $query->get();
+        });
+
+        return response()->json($data);
     }
 
     public function show($id)
@@ -31,48 +40,93 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         if ($request->user()->role !== 'shop_admin') {
-             return response()->json(['message' => 'Unauthorized'], 403);
+            return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
+
         // Ensure Shop Admin only adds to their own shop
         $shopId = $request->user()->shop_id;
-        if (!$shopId) return response()->json(['message' => 'No shop assigned'], 400);
+        if (! $shopId) {
+            return response()->json(['message' => 'No shop assigned'], 400);
+        }
 
         $validated = $request->validate([
-            'name' => 'required|string',
-            'price' => 'required|numeric',
-            'description' => 'nullable|string',
-            'image' => 'nullable|string',
-            'category' => 'nullable|string',
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0|max:999999',
+            'description' => 'nullable|string|max:1000',
+            'image' => 'nullable|string|max:500',
+            'category' => 'nullable|string|max:100',
         ]);
 
         $product = Product::create([
             'shop_id' => $shopId,
-            ...$validated
+            ...$validated,
         ]);
+
+        Log::info('admin_product_created', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $shopId,
+            'product_id' => $product->id,
+        ]);
+
+        Cache::forget('products:list:shop:all:cat:none');
+        Cache::forget('products:list:shop:'.$shopId.':cat:none');
 
         return response()->json($product, 201);
     }
 
     public function update(Request $request, $id)
     {
-         if ($request->user()->role !== 'shop_admin') return response()->json(['message' => 'Unauthorized'], 403);
-         
-         $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
-         
-         $product->update($request->all());
-         
-         return response()->json($product);
+        if ($request->user()->role !== 'shop_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
+        $this->authorize('update', $product);
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'price' => 'sometimes|numeric|min:0|max:999999',
+            'description' => 'sometimes|nullable|string|max:1000',
+            'image' => 'sometimes|nullable|string|max:500',
+            'category' => 'sometimes|nullable|string|max:100',
+            'is_active' => 'sometimes|boolean',
+        ]);
+
+        $product->update($validated);
+
+        Log::info('admin_product_updated', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'product_id' => $product->id,
+            'changes' => array_keys($validated),
+        ]);
+
+        Cache::forget('products:list:shop:all:cat:none');
+        Cache::forget('products:list:shop:'.$request->user()->shop_id.':cat:none');
+
+        return response()->json($product);
     }
 
     public function destroy(Request $request, $id)
     {
-         if ($request->user()->role !== 'shop_admin') return response()->json(['message' => 'Unauthorized'], 403);
+        if ($request->user()->role !== 'shop_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
-         $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
-         $product->delete();
-         
-         return response()->json(['message' => 'Deleted']);
+        $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
+        $this->authorize('delete', $product);
+        $product->delete();
+
+        Log::info('admin_product_deleted', [
+            'user_id' => $request->user()->id,
+            'shop_id' => $request->user()->shop_id,
+            'product_id' => $product->id,
+        ]);
+
+        Cache::forget('products:list:shop:all:cat:none');
+        Cache::forget('products:list:shop:'.$request->user()->shop_id.':cat:none');
+
+        return response()->json(['message' => 'Deleted']);
     }
 
     /**
@@ -81,7 +135,7 @@ class ProductController extends Controller
     public function recommendations($id)
     {
         $product = Product::findOrFail($id);
-        
+
         // Related products (same category)
         $related = Product::where('category', $product->category)
             ->where('id', '!=', $id)
@@ -89,17 +143,17 @@ class ProductController extends Controller
             ->inRandomOrder()
             ->limit(4)
             ->get();
-        
+
         // Popular products (most ordered)
         $popular = Product::where('is_active', true)
             ->withCount('orderItems')
             ->orderBy('order_items_count', 'desc')
             ->limit(4)
             ->get();
-        
+
         return response()->json([
             'related' => $related,
-            'popular' => $popular
+            'popular' => $popular,
         ]);
     }
 }

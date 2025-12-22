@@ -1,0 +1,39 @@
+name: build-android-multi-shops
+
+on:
+  workflow_dispatch:
+    inputs:
+      shops:
+        description: "قائمة المحلات للبناء مفصولة بفاصلة"
+        required: false
+        default: "shop_001,shop_002,shop_003"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shop: [shop_001, shop_002, shop_003]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses
+      - name: Install SDK components
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Build shop
+        run: node scripts/build-shop.js ${{ matrix.shop }}
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.shop }}
+          path: builds/${{ matrix.shop }}/

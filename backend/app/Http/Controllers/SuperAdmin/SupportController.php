@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\SupportTicket;
 use App\Models\TicketReply;
+use Illuminate\Http\Request;
 
 class SupportController extends Controller
 {
@@ -37,6 +37,7 @@ class SupportController extends Controller
         }
 
         $ticket = SupportTicket::with(['client', 'assignedTo', 'replies.user'])->findOrFail($id);
+
         return response()->json($ticket);
     }
 
@@ -48,7 +49,7 @@ class SupportController extends Controller
 
         $request->validate([
             'message' => 'required|string',
-            'is_internal' => 'boolean'
+            'is_internal' => 'boolean',
         ]);
 
         $ticket = SupportTicket::findOrFail($id);
@@ -57,7 +58,7 @@ class SupportController extends Controller
             'ticket_id' => $id,
             'user_id' => $request->user()->id,
             'message' => $request->message,
-            'is_internal' => $request->is_internal ?? false
+            'is_internal' => $request->is_internal ?? false,
         ]);
 
         return response()->json($reply->load('user'));
@@ -70,7 +71,7 @@ class SupportController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|in:open,in_progress,resolved,closed'
+            'status' => 'required|in:open,in_progress,resolved,closed',
         ]);
 
         $ticket = SupportTicket::findOrFail($id);
@@ -86,7 +87,7 @@ class SupportController extends Controller
         }
 
         $request->validate([
-            'assigned_to' => 'required|exists:users,id'
+            'assigned_to' => 'required|exists:users,id',
         ]);
 
         $ticket = SupportTicket::findOrFail($id);

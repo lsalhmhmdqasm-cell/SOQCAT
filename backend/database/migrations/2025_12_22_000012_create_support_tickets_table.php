@@ -17,7 +17,7 @@ return new class extends Migration
             $table->enum('status', ['open', 'in_progress', 'resolved', 'closed'])->default('open');
             $table->foreignId('assigned_to')->nullable()->constrained('users');
             $table->timestamps();
-            
+
             $table->index('client_id');
             $table->index('status');
             $table->index('priority');

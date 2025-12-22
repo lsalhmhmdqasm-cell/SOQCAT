@@ -14,6 +14,24 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
   const [drivers, setDrivers] = useState<DeliveryPerson[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const STATUS_FROM_BACKEND: Record<string, OrderStatus> = {
+    pending: OrderStatus.PENDING,
+    confirmed: OrderStatus.PENDING,
+    preparing: OrderStatus.PREPARING,
+    out_for_delivery: OrderStatus.DELIVERING,
+    delivered: OrderStatus.COMPLETED,
+    completed: OrderStatus.COMPLETED,
+    cancelled: OrderStatus.CANCELLED,
+  };
+
+  const STATUS_TO_BACKEND: Record<OrderStatus, string> = {
+    [OrderStatus.PENDING]: 'pending',
+    [OrderStatus.PREPARING]: 'preparing',
+    [OrderStatus.DELIVERING]: 'out_for_delivery',
+    [OrderStatus.COMPLETED]: 'delivered',
+    [OrderStatus.CANCELLED]: 'cancelled',
+  };
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -26,7 +44,30 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
           orderRes = await api.get('/orders');
         }
 
-        setOrders(orderRes.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        const mappedOrders: Order[] = (orderRes.data || []).map((o: any) => ({
+          id: String(o.id),
+          userId: o.user?.name ? String(o.user.name) : String(o.user_id ?? ''),
+          items: (o.items || []).map((item: any) => ({
+            id: String(item.product?.id ?? item.product_id ?? item.id ?? ''),
+            shop_id: item.product?.shop_id ?? o.shop_id,
+            name: String(item.product?.name ?? item.name ?? ''),
+            price: Number(item.price ?? item.product?.price ?? 0),
+            quantity: Number(item.quantity ?? 1),
+            image: String(item.product?.image ?? ''),
+            category: String(item.product?.category ?? item.product?.category_id ?? ''),
+            description: String(item.product?.description ?? ''),
+          })),
+          total: Number(o.total ?? 0),
+          status: STATUS_FROM_BACKEND[String(o.status)] ?? OrderStatus.PENDING,
+          date: String(o.created_at ?? o.date ?? ''),
+          deliveryAddress: String(o.delivery_address ?? o.deliveryAddress ?? ''),
+          deliveryPersonId: o.delivery_person_id != null ? String(o.delivery_person_id) : undefined,
+          location: undefined,
+          estimatedTime: o.estimated_delivery_time ? 45 : undefined,
+          trackingNumber: o.tracking_number ? String(o.tracking_number) : undefined,
+        }));
+
+        setOrders(mappedOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 
       } catch (e) {
         console.error("Failed to fetch orders", e);
@@ -75,7 +116,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     if (!user.isAdmin) return;
     try {
-      await api.put(`/orders/${orderId}/status`, { status: newStatus });
+      await api.put(`/orders/${orderId}/status`, { status: STATUS_TO_BACKEND[newStatus] });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (e) {
       alert("فشل تحديث الحالة");
@@ -104,7 +145,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
                   <div>
                     <h3 className="font-bold text-gray-800">طلب #{order.id}</h3>
                     <span className="text-xs text-gray-400">
-                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}
+                      {order.date ? new Date(order.date).toLocaleDateString() : ''}
                     </span>
                   </div>
                   <div className="text-green-700 font-bold">{Number(order.total).toLocaleString()} ر.ي</div>
@@ -115,7 +156,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
                 {/* Track Order Button */}
                 {order.status !== OrderStatus.COMPLETED && order.status !== OrderStatus.CANCELLED && (
                   <button
-                    onClick={() => navigate(`/track/${order.id}`)}
+                    onClick={() => navigate(order.trackingNumber ? `/order-tracking/${order.trackingNumber}` : `/track/${order.id}`)}
                     className="w-full bg-green-50 text-green-700 font-bold py-3 rounded-lg flex items-center justify-center gap-2 mb-4 hover:bg-green-100 transition-colors"
                   >
                     <Map size={18} />
@@ -127,7 +168,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({ user }) => {
                 <div className="space-y-1 mt-2 bg-gray-50 p-3 rounded-lg text-sm">
                   {order.items?.map((item, idx) => (
                     <div key={idx} className="flex justify-between">
-                      <span className="text-gray-600">{item.quantity}x {item.product?.name || 'منتج'}</span>
+                      <span className="text-gray-600">{item.quantity}x {item.name || 'منتج'}</span>
                       <span className="font-medium">{(item.price * item.quantity).toLocaleString()}</span>
                     </div>
                   ))}

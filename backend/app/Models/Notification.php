@@ -15,11 +15,11 @@ class Notification extends Model
         'body',
         'type',
         'related_id',
-        'is_read'
+        'is_read',
     ];
 
     protected $casts = [
-        'is_read' => 'boolean'
+        'is_read' => 'boolean',
     ];
 
     /**

@@ -1,10 +1,10 @@
 {
-  "name": "متجر القات",
-  "short_name": "QatShop",
+  "name": "سوق صنعاء للقات",
+  "short_name": "سوق صنعاء",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#15803d",
+  "theme_color": "#dc2626",
   "orientation": "portrait",
   "icons": [
     {

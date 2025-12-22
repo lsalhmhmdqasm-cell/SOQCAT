@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Review;
 use App\Models\Product;
+use App\Models\Review;
+use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
@@ -17,7 +17,7 @@ class ReviewController extends Controller
             ->with('user:id,name')
             ->latest()
             ->get();
-        
+
         $avgRating = $reviews->avg('rating');
         $ratingCounts = [
             5 => $reviews->where('rating', 5)->count(),
@@ -26,12 +26,12 @@ class ReviewController extends Controller
             2 => $reviews->where('rating', 2)->count(),
             1 => $reviews->where('rating', 1)->count(),
         ];
-        
+
         return response()->json([
             'reviews' => $reviews,
             'average_rating' => round($avgRating, 1),
             'total_reviews' => $reviews->count(),
-            'rating_counts' => $ratingCounts
+            'rating_counts' => $ratingCounts,
         ]);
     }
 
@@ -43,23 +43,23 @@ class ReviewController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:500'
+            'comment' => 'nullable|string|max:500',
         ]);
-        
+
         $review = Review::updateOrCreate(
             [
                 'product_id' => $request->product_id,
-                'user_id' => $request->user()->id
+                'user_id' => $request->user()->id,
             ],
             [
                 'rating' => $request->rating,
-                'comment' => $request->comment
+                'comment' => $request->comment,
             ]
         );
-        
+
         return response()->json([
             'message' => 'تم إضافة التقييم بنجاح',
-            'review' => $review->load('user:id,name')
+            'review' => $review->load('user:id,name'),
         ]);
     }
 
@@ -71,9 +71,9 @@ class ReviewController extends Controller
         $review = Review::where('id', $id)
             ->where('user_id', request()->user()->id)
             ->firstOrFail();
-        
+
         $review->delete();
-        
+
         return response()->json(['message' => 'تم حذف التقييم']);
     }
 }

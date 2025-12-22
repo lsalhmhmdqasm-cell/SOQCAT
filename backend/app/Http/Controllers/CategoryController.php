@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Category;
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
@@ -13,6 +13,7 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = Category::active()->ordered()->get();
+
         return response()->json($categories);
     }
 
@@ -29,7 +30,7 @@ class CategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'image' => 'nullable|string',
-            'order' => 'nullable|integer'
+            'order' => 'nullable|integer',
         ]);
 
         $category = Category::create($validated);

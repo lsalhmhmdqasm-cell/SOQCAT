@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Http\Requests\StoreOrderRequest;
+use App\Events\OrderStatusUpdated;
+use App\Http\Controllers\NotificationController;
 use App\Models\Order;
 use App\Models\OrderItem;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class OrderController extends Controller
 {
@@ -18,9 +21,13 @@ class OrderController extends Controller
             $receiptPath = null;
             if ($request->hasFile('payment_receipt')) {
                 $file = $request->file('payment_receipt');
-                $filename = 'receipt_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/receipts'), $filename);
-                $receiptPath = '/uploads/receipts/' . $filename;
+                $filename = 'receipt_'.time().'_'.uniqid().'.'.$file->getClientOriginalExtension();
+                $receiptsDir = public_path('uploads/receipts');
+                if (! File::exists($receiptsDir)) {
+                    File::makeDirectory($receiptsDir, 0775, true, true);
+                }
+                $file->move($receiptsDir, $filename);
+                $receiptPath = '/uploads/receipts/'.$filename;
             }
 
             $order = Order::create([
@@ -44,19 +51,27 @@ class OrderController extends Controller
                     'price' => $item['price'],
                 ]);
             }
-            
+
             $statusNote = 'تم إنشاء الطلب';
             if ($validated['payment_method'] !== 'cash_on_delivery') {
                 $statusNote .= ' - بانتظار تأكيد الدفع';
             }
-            
+
             // Create initial status history
             $order->updateStatus('pending', $statusNote, $request->user()->id);
+
+            NotificationController::create(
+                $request->user()->id,
+                'تم إنشاء طلبك',
+                'رقم التتبع: '.$order->tracking_number,
+                'order',
+                $order->tracking_number
+            );
 
             return response()->json([
                 'message' => 'Order created',
                 'order' => $order->load('items'),
-                'tracking_number' => $order->tracking_number
+                'tracking_number' => $order->tracking_number,
             ], 201);
         });
     }
@@ -65,7 +80,7 @@ class OrderController extends Controller
     {
         return $request->user()->orders()->with('items.product')->latest()->get();
     }
-    
+
     public function show(Request $request, $id)
     {
         return $request->user()->orders()->with('items.product')->findOrFail($id);
@@ -79,7 +94,7 @@ class OrderController extends Controller
         $order = Order::where('tracking_number', $trackingNumber)
             ->with(['statusHistory.updatedBy', 'deliveryPerson', 'shop'])
             ->firstOrFail();
-        
+
         return response()->json($order);
     }
 
@@ -90,18 +105,34 @@ class OrderController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,confirmed,preparing,out_for_delivery,delivered,cancelled',
-            'note' => 'nullable|string|max:500'
+            'note' => 'nullable|string|max:500',
         ]);
-        
+
         $order = Order::findOrFail($id);
-        
-        // Check authorization
-        if ($request->user()->role !== 'shop_admin' || $order->shop_id !== $request->user()->shop_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        
+
+        $this->authorize('update', $order);
+
         $order->updateStatus($request->status, $request->note, $request->user()->id);
-        
+
+        event(new OrderStatusUpdated($order));
+
+        $statusLabel = match ($request->status) {
+            'pending' => 'قيد الانتظار',
+            'confirmed' => 'تم التأكيد',
+            'preparing' => 'قيد التحضير',
+            'out_for_delivery' => 'في الطريق',
+            'delivered' => 'تم التوصيل',
+            'cancelled' => 'ملغي',
+        };
+
+        NotificationController::create(
+            $order->user_id,
+            'تم تحديث حالة طلبك',
+            'الحالة الحالية: '.$statusLabel.' - رقم التتبع: '.$order->tracking_number,
+            'order',
+            $order->tracking_number
+        );
+
         return response()->json($order->load('statusHistory'));
     }
 
@@ -112,24 +143,36 @@ class OrderController extends Controller
     {
         $request->validate([
             'delivery_person_id' => 'required|exists:delivery_persons,id',
-            'estimated_delivery_time' => 'nullable|date'
+            'estimated_delivery_time' => 'nullable|date',
         ]);
-        
+
         $order = Order::findOrFail($id);
-        
-        // Check authorization
-        if ($request->user()->role !== 'shop_admin' || $order->shop_id !== $request->user()->shop_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        
+
+        $this->authorize('update', $order);
+
         $order->update([
             'delivery_person_id' => $request->delivery_person_id,
             'estimated_delivery_time' => $request->estimated_delivery_time,
-            'status' => 'out_for_delivery'
+            'status' => 'out_for_delivery',
         ]);
-        
+
         $order->updateStatus('out_for_delivery', 'تم تعيين مندوب التوصيل', $request->user()->id);
-        
+
+        event(new OrderStatusUpdated($order));
+
+        $driverName = optional($order->deliveryPerson)->name;
+        $message = $driverName ? ('مندوبك: '.$driverName) : 'تم تعيين مندوب التوصيل';
+        if ($request->estimated_delivery_time) {
+            $message .= ' | وقت متوقع: '.$request->estimated_delivery_time;
+        }
+        NotificationController::create(
+            $order->user_id,
+            'طلبك في الطريق',
+            $message.' - رقم التتبع: '.$order->tracking_number,
+            'order',
+            $order->tracking_number
+        );
+
         return response()->json($order->load(['deliveryPerson', 'statusHistory']));
     }
 
@@ -139,25 +182,10 @@ class OrderController extends Controller
         if ($request->user()->role !== 'shop_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        
-        return Order::where('shop_id', $request->user()->shop_id)
-                    ->with(['items.product', 'user', 'deliveryPerson'])
-                    ->latest()
-                    ->get();
-    }
 
-    public function updateStatus(Request $request, $id)
-    {
-        if ($request->user()->role !== 'shop_admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        
-        $order = Order::where('shop_id', $request->user()->shop_id)->findOrFail($id);
-        
-        $request->validate(['status' => 'required|string']);
-        
-        $order->update(['status' => $request->status]);
-        
-        return response()->json($order);
+        return Order::where('shop_id', $request->user()->shop_id)
+            ->with(['items.product', 'user', 'deliveryPerson'])
+            ->latest()
+            ->get();
     }
 }

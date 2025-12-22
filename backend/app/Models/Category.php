@@ -13,12 +13,12 @@ class Category extends Model
         'name',
         'image',
         'is_active',
-        'order'
+        'order',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'order' => 'integer'
+        'order' => 'integer',
     ];
 
     /**

@@ -14,7 +14,7 @@ class LoyaltyPoint extends Model
         'shop_id',
         'points_balance',
         'total_earned',
-        'total_spent'
+        'total_spent',
     ];
 
     public function user()

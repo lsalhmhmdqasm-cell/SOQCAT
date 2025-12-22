@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build artifacts and local tooling
+builds/
+.gradle/
+android/build/
+android/app/build/
+.env
+.env.development.local
+.env.production.local
+*.keystore
+*.jks

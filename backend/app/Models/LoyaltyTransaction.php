@@ -16,7 +16,7 @@ class LoyaltyTransaction extends Model
         'type', // earned, spent, expired, refund, bonus
         'description',
         'reference_id', // e.g., order_id
-        'reference_type' // e.g., App\Models\Order
+        'reference_type', // e.g., App\Models\Order
     ];
 
     public function user()

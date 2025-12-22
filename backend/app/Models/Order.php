@@ -18,20 +18,20 @@ class Order extends Model
         'delivery_person_id',
         'estimated_delivery_time',
         'delivery_fee',
-        'tracking_number'
+        'tracking_number',
     ];
 
     protected $casts = [
-        'estimated_delivery_time' => 'datetime'
+        'estimated_delivery_time' => 'datetime',
     ];
 
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($order) {
-            if (!$order->tracking_number) {
-                $order->tracking_number = 'ORD-' . strtoupper(uniqid());
+            if (! $order->tracking_number) {
+                $order->tracking_number = 'ORD-'.strtoupper(uniqid());
             }
         });
     }
@@ -64,13 +64,13 @@ class Order extends Model
     public function updateStatus($status, $note = null, $userId = null)
     {
         $this->update(['status' => $status]);
-        
+
         $this->statusHistory()->create([
             'status' => $status,
             'note' => $note,
-            'updated_by' => $userId
+            'updated_by' => $userId,
         ]);
-        
+
         return $this;
     }
 }

@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Plus, Trash2, Save, DollarSign } from 'lucide-react';
 import { AppSettings, Slider } from '../../types';
 import { mockApi } from '../../services/mockApi';
+import { api } from '../../services/api';
 import { Button } from '../../components/Button';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useShop } from '../../context/ShopContext';
 
 export const SettingsManager = () => {
   const [settings, setSettings] = useState<AppSettings>({ shopName: '', logo: '', deliveryFee: 0 });
   const [sliders, setSliders] = useState<Slider[]>([]);
+  const { updateShopSettings } = useShop();
   
   // New Slider Form
   const [newSlideTitle, setNewSlideTitle] = useState('');
@@ -17,25 +20,103 @@ export const SettingsManager = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Theme and features
+  const [primaryColor, setPrimaryColor] = useState<string>('#15803d');
+  const [secondaryColor, setSecondaryColor] = useState<string>('#166534');
+  const [enableReviews, setEnableReviews] = useState<boolean>(true);
+  const [enableProductRecommendations, setEnableProductRecommendations] = useState<boolean>(true);
+  const [categoryVisibility, setCategoryVisibility] = useState<'public' | 'registered' | 'shop_only'>('public');
+  const [enableNotifications, setEnableNotifications] = useState<boolean>(true);
+  const [enableMultipleAddresses, setEnableMultipleAddresses] = useState<boolean>(true);
+
   const refreshData = async () => {
-    const [s, sl] = await Promise.all([mockApi.getSettings(), mockApi.getSliders()]);
-    setSettings(s);
-    setSliders(sl);
+    try {
+      const [backendSettings, sl] = await Promise.all([
+        api.get('/shop/settings').then(r => r.data).catch(async () => await mockApi.getSettings()),
+        mockApi.getSliders()
+      ]);
+      setSettings(backendSettings);
+      setSliders(sl);
+    } catch {
+      const [s, sl] = await Promise.all([mockApi.getSettings(), mockApi.getSliders()]);
+      setSettings(s);
+      setSliders(sl);
+    }
   };
 
   useEffect(() => {
     refreshData();
+    try {
+      const configStr = localStorage.getItem('shopConfig');
+      if (configStr) {
+        const config = JSON.parse(configStr);
+        setPrimaryColor(config.primaryColor || '#15803d');
+        setSecondaryColor(config.secondaryColor || '#166534');
+        setEnableReviews(!!config.features?.enableReviews);
+        setEnableProductRecommendations(!!config.features?.enableProductRecommendations);
+        setEnableNotifications(!!config.features?.enableNotifications);
+        setEnableMultipleAddresses(!!config.features?.enableMultipleAddresses);
+        const vis = config.features?.categoryPrivacy?.visibility;
+        if (vis === 'registered' || vis === 'shop_only') {
+          setCategoryVisibility(vis);
+        } else {
+          setCategoryVisibility('public');
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const handleSettingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await mockApi.updateSettings(settings);
+    try {
+      await api.put('/shop/settings', {
+        shopName: settings.shopName,
+        logo: settings.logo,
+        primaryColor,
+        secondaryColor,
+        deliveryFee: settings.deliveryFee,
+      });
+    } catch {
+      await mockApi.updateSettings(settings);
+    }
+    updateShopSettings({
+      shopName: settings.shopName,
+      logo: settings.logo,
+      deliveryFee: settings.deliveryFee,
+      primaryColor,
+      secondaryColor,
+      features: {
+        enableReviews,
+        enableProductRecommendations,
+        enableNotifications,
+        enableMultipleAddresses,
+        categoryPrivacy: {
+          visibility: categoryVisibility
+        }
+      }
+    });
     alert('تم حفظ الإعدادات بنجاح');
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const form = new FormData();
+      form.append('image', file);
+      try {
+        const res = await api.post('/upload/shop-logo', form, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        const url = res.data?.url;
+        if (url) {
+          setSettings(prev => ({ ...prev, logo: url }));
+          return;
+        }
+      } catch {
+        // fallback to base64 for demo
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setSettings(prev => ({ ...prev, logo: reader.result as string }));
@@ -107,6 +188,63 @@ export const SettingsManager = () => {
                 رفع صورة
                 <input type="file" hidden accept="image/*" onChange={handleLogoUpload} />
               </label>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">اللون الأساسي (Hex)</label>
+              <input 
+                value={primaryColor}
+                onChange={e => setPrimaryColor(e.target.value)}
+                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
+                dir="ltr"
+              />
+              <p className="text-xs text-gray-500 mt-1">مثال: #15803d</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">اللون الثانوي (Hex)</label>
+              <input 
+                value={secondaryColor}
+                onChange={e => setSecondaryColor(e.target.value)}
+                className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:outline-none text-left"
+                dir="ltr"
+              />
+              <p className="text-xs text-gray-500 mt-1">مثال: #166534</p>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="font-bold mb-2">ميزات الواجهة</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={enableReviews} onChange={e => setEnableReviews(e.target.checked)} />
+                <span>تفعيل التقييمات</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={enableProductRecommendations} onChange={e => setEnableProductRecommendations(e.target.checked)} />
+                <span>اقتراحات المنتجات</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={enableNotifications} onChange={e => setEnableNotifications(e.target.checked)} />
+                <span>الإشعارات</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={enableMultipleAddresses} onChange={e => setEnableMultipleAddresses(e.target.checked)} />
+                <span>عناوين متعددة</span>
+              </label>
+              <div>
+                <label className="block text-sm font-medium mb-1">خصوصية التصنيفات</label>
+                <select 
+                  value={categoryVisibility}
+                  onChange={e => setCategoryVisibility(e.target.value as any)}
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                >
+                  <option value="public">عام</option>
+                  <option value="registered">للمسجلين فقط</option>
+                  <option value="shop_only">مخفي</option>
+                </select>
+              </div>
             </div>
           </div>
           <Button type="submit">

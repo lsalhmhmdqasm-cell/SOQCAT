@@ -44,6 +44,9 @@ export const ProductRecommendations: React.FC<ProductRecommendationsProps> = ({
                     src={product.image}
                     alt={product.name}
                     className="w-full h-32 object-cover"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
                 />
                 <div className="p-2">
                     <p className="text-xs font-bold text-gray-800 truncate">{product.name}</p>

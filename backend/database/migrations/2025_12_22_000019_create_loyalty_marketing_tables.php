@@ -17,7 +17,7 @@ return new class extends Migration
             $table->integer('total_earned')->default(0); // إجمالي النقاط المكتسبة
             $table->integer('total_spent')->default(0); // إجمالي النقاط المستخدمة
             $table->timestamps();
-            
+
             $table->unique(['user_id', 'shop_id']);
         });
 
@@ -72,7 +72,7 @@ return new class extends Migration
             $table->integer('referred_reward')->default(0); // مكافأة المُحال (نقاط)
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-            
+
             $table->unique(['shop_id', 'referred_id']);
         });
     }

@@ -27,7 +27,7 @@ class OrderStatusUpdated implements ShouldBroadcast
      */
     public function broadcastOn()
     {
-        return new Channel('orders.' . $this->order->user_id);
+        return new Channel('orders.'.$this->order->user_id);
     }
 
     /**
@@ -44,7 +44,7 @@ class OrderStatusUpdated implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
-            'order' => $this->order->load(['statusHistory', 'deliveryPerson'])
+            'order' => $this->order->load(['statusHistory', 'deliveryPerson']),
         ];
     }
 }

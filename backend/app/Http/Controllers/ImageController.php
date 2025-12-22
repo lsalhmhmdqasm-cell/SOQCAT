@@ -14,26 +14,26 @@ class ImageController extends Controller
     public function uploadProductImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120' // 5MB
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120', // 5MB
         ]);
 
         $image = $request->file('image');
-        $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        
+        $filename = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
+
         // Optimize image
         $img = Image::make($image);
         $img->resize(800, 800, function ($constraint) {
             $constraint->aspectRatio();
             $constraint->upsize();
         });
-        
+
         // Save to storage
-        $path = 'products/' . $filename;
+        $path = 'products/'.$filename;
         Storage::disk('public')->put($path, (string) $img->encode());
-        
+
         return response()->json([
             'url' => Storage::url($path),
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -43,25 +43,25 @@ class ImageController extends Controller
     public function uploadCategoryImage(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048' // 2MB
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048', // 2MB
         ]);
 
         $image = $request->file('image');
-        $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        
+        $filename = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
+
         // Optimize image
         $img = Image::make($image);
         $img->resize(400, 400, function ($constraint) {
             $constraint->aspectRatio();
             $constraint->upsize();
         });
-        
-        $path = 'categories/' . $filename;
+
+        $path = 'categories/'.$filename;
         Storage::disk('public')->put($path, (string) $img->encode());
-        
+
         return response()->json([
             'url' => Storage::url($path),
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -71,25 +71,25 @@ class ImageController extends Controller
     public function uploadShopLogo(Request $request)
     {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048' // 2MB
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048', // 2MB
         ]);
 
         $image = $request->file('image');
-        $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        
+        $filename = time().'_'.uniqid().'.'.$image->getClientOriginalExtension();
+
         // Optimize image
         $img = Image::make($image);
         $img->resize(500, 500, function ($constraint) {
             $constraint->aspectRatio();
             $constraint->upsize();
         });
-        
-        $path = 'shops/' . $filename;
+
+        $path = 'shops/'.$filename;
         Storage::disk('public')->put($path, (string) $img->encode());
-        
+
         return response()->json([
             'url' => Storage::url($path),
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -99,21 +99,22 @@ class ImageController extends Controller
     public function deleteImage(Request $request)
     {
         $request->validate([
-            'filename' => 'required|string'
+            'filename' => 'required|string',
         ]);
 
         $filename = $request->filename;
-        
+
         // Try to delete from all possible locations
         $paths = [
-            'products/' . $filename,
-            'categories/' . $filename,
-            'shops/' . $filename
+            'products/'.$filename,
+            'categories/'.$filename,
+            'shops/'.$filename,
         ];
 
         foreach ($paths as $path) {
             if (Storage::disk('public')->exists($path)) {
                 Storage::disk('public')->delete($path);
+
                 return response()->json(['message' => 'Image deleted successfully']);
             }
         }

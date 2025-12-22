@@ -24,5 +24,16 @@ export default defineConfig({
         comments: false,
       },
     },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          charts: ['recharts'],
+          icons: ['lucide-react'],
+          vendor: ['axios'],
+        }
+      }
+    }
   }
 });

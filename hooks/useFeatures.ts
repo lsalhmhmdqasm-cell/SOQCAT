@@ -1,4 +1,5 @@
 import { useShop } from '../context/ShopContext';
+import { Category, Product } from '../types';
 
 /**
  * Hook للتحقق من الميزات المفعلة للمحل
@@ -32,6 +33,11 @@ export interface ShopFeatures {
     enableCustomCategories: boolean;
     enableFlashSales: boolean;
     enableBulkOrders: boolean;
+    categoryPrivacy?: {
+        visibility: 'public' | 'registered' | 'shop_only';
+        hiddenCategories?: string[];
+        allowedCategories?: string[];
+    };
 }
 
 const DEFAULT_FEATURES: ShopFeatures = {
@@ -54,7 +60,12 @@ const DEFAULT_FEATURES: ShopFeatures = {
     maxOrdersPerDay: 50,
     enableCustomCategories: false,
     enableFlashSales: false,
-    enableBulkOrders: false
+    enableBulkOrders: false,
+    categoryPrivacy: {
+        visibility: 'public',
+        hiddenCategories: [],
+        allowedCategories: []
+    }
 };
 
 export const useFeatures = () => {
@@ -102,11 +113,44 @@ export const useFeatures = () => {
         return todayOrdersCount < features.maxOrdersPerDay;
     };
 
+    const canViewCategory = (name: string, isLoggedIn: boolean): boolean => {
+        const privacy = features.categoryPrivacy || { visibility: 'public', hiddenCategories: [], allowedCategories: [] };
+        if (privacy.hiddenCategories && privacy.hiddenCategories.includes(name)) {
+            return false;
+        }
+        if (privacy.allowedCategories && privacy.allowedCategories.length > 0) {
+            if (!privacy.allowedCategories.includes(name)) {
+                return false;
+            }
+        }
+        if (privacy.visibility === 'public') {
+            return true;
+        }
+        if (privacy.visibility === 'registered') {
+            return isLoggedIn;
+        }
+        if (privacy.visibility === 'shop_only') {
+            return false;
+        }
+        return true;
+    };
+
+    const filterCategories = (categories: Category[], isLoggedIn: boolean): Category[] => {
+        return categories.filter(c => canViewCategory(c.name, isLoggedIn));
+    };
+
+    const filterProductsByCategoryPrivacy = (products: Product[], isLoggedIn: boolean): Product[] => {
+        return products.filter(p => canViewCategory(p.category || '', isLoggedIn));
+    };
+
     return {
         features,
         hasFeature,
         getFeatureValue,
         canAddMoreProducts,
-        canPlaceMoreOrders
+        canPlaceMoreOrders,
+        canViewCategory,
+        filterCategories,
+        filterProductsByCategoryPrivacy
     };
 };

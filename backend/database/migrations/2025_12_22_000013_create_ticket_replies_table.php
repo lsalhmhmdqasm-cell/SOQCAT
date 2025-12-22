@@ -15,7 +15,7 @@ return new class extends Migration
             $table->text('message');
             $table->boolean('is_internal')->default(false); // internal note or visible to client
             $table->timestamps();
-            
+
             $table->index('ticket_id');
         });
     }

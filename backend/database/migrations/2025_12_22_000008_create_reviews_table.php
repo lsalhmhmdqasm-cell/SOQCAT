@@ -15,7 +15,7 @@ return new class extends Migration
             $table->integer('rating')->unsigned(); // 1-5
             $table->text('comment')->nullable();
             $table->timestamps();
-            
+
             // One review per user per product
             $table->unique(['product_id', 'user_id']);
             $table->index('product_id');

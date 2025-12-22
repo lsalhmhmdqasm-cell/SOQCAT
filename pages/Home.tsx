@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Heart, Bell } from 'lucide-react';
 import { Product, Category, Slider } from '../types';
 import { api } from '../services/api'; // Use Real API
+import { useFeatures } from '../hooks/useFeatures';
 import { ProductSkeleton, Skeleton } from '../components/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
@@ -14,6 +15,7 @@ interface HomeProps {
 export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
   const navigate = useNavigate();
   const { user } = useShop();
+  const { filterCategories, filterProductsByCategoryPrivacy } = useFeatures();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [sliders, setSliders] = useState<Slider[]>([]);
@@ -26,6 +28,22 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const cachedProdsStr = localStorage.getItem('cache:products');
+        const cachedCatsStr = localStorage.getItem('cache:categories');
+        const now = Date.now();
+        if (cachedProdsStr) {
+          const cached = JSON.parse(cachedProdsStr);
+          if (cached && cached.ts && (now - cached.ts) < 120000 && Array.isArray(cached.data)) {
+            setProducts(cached.data);
+            setLoading(false);
+          }
+        }
+        if (cachedCatsStr) {
+          const cached = JSON.parse(cachedCatsStr);
+          if (cached && cached.ts && (now - cached.ts) < 120000 && Array.isArray(cached.data)) {
+            setCategories(cached.data);
+          }
+        }
         const [prodsRes, catsRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories') // ✅ استخدام Categories API الحقيقي
@@ -33,6 +51,8 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
 
         setProducts(prodsRes.data);
         setCategories(catsRes.data);
+        localStorage.setItem('cache:products', JSON.stringify({ data: prodsRes.data, ts: Date.now() }));
+        localStorage.setItem('cache:categories', JSON.stringify({ data: catsRes.data, ts: Date.now() }));
 
         // Mock Sliders for now until backend endpoint exists
         setSliders([
@@ -84,11 +104,12 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
     }
   };
 
-  const filteredProducts = products.filter(p => {
+  const filteredProductsBase = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = activeCategory === 'الكل' || p.category === activeCategory || (activeCategory !== 'الكل' && p.category?.includes(activeCategory));
     return matchesSearch && matchesCategory;
   });
+  const filteredProducts = filterProductsByCategoryPrivacy(filteredProductsBase, !!user);
 
   return (
     <div className="pb-24">
@@ -127,7 +148,7 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
                 key={slide.id}
                 className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${idx === currentSlide ? 'opacity-100' : 'opacity-0'}`}
               >
-                <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" />
+                <img src={slide.image} alt={slide.title} className="w-full h-full object-cover" loading="lazy" decoding="async" fetchPriority="low" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
                   <h2 className="text-white font-bold text-lg">{slide.title}</h2>
                 </div>
@@ -159,7 +180,7 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
           {loading ? (
             [1, 2, 3].map(i => <Skeleton key={i} width={80} height={36} className="rounded-full flex-shrink-0" />)
           ) : (
-            categories.map(cat => (
+            filterCategories(categories, !!user).map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.name)}
@@ -188,7 +209,7 @@ export const Home: React.FC<HomeProps> = ({ onProductClick, addToCart }) => {
                   <Heart size={16} fill={product.isFavorite ? "currentColor" : "none"} />
                 </button>
                 <div className="h-32 rounded-xl overflow-hidden mb-3 bg-gray-100">
-                  <img src={product.image || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={product.image || 'https://via.placeholder.com/300'} alt={product.name} className="w-full h-full object-cover" loading="lazy" decoding="async" fetchPriority="low" />
                 </div>
                 <h4 className="font-bold text-gray-800 text-sm line-clamp-1">{product.name}</h4>
                 <p className="text-xs text-gray-500 mb-2 line-clamp-1">{product.category}</p>

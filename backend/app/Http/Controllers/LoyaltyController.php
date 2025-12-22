@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\LoyaltyPoint;
 use App\Models\LoyaltyTransaction;
+use Illuminate\Http\Request;
 
 class LoyaltyController extends Controller
 {
@@ -14,15 +14,15 @@ class LoyaltyController extends Controller
         $user = $request->user();
         $points = $user->loyaltyPoints()->where('shop_id', $user->shop_id)->first();
         $transactions = $user->loyaltyTransactions()
-                            ->where('shop_id', $user->shop_id)
-                            ->latest()
-                            ->take(20)
-                            ->get();
+            ->where('shop_id', $user->shop_id)
+            ->latest()
+            ->take(20)
+            ->get();
 
         return response()->json([
             'balance' => $points ? $points->points : 0,
             'total_earned' => $points ? $points->total_earned : 0,
-            'history' => $transactions
+            'history' => $transactions,
         ]);
     }
 
@@ -43,7 +43,7 @@ class LoyaltyController extends Controller
             'points' => $points,
             'type' => $type,
             'description' => $description,
-            'order_id' => $orderId
+            'order_id' => $orderId,
         ]);
     }
 }

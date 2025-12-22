@@ -18,7 +18,7 @@ return new class extends Migration
             $table->enum('status', ['active', 'cancelled', 'expired'])->default('active');
             $table->date('next_billing_date')->nullable();
             $table->timestamps();
-            
+
             $table->index('client_id');
             $table->index('status');
         });

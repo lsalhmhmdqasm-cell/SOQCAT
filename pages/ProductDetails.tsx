@@ -46,7 +46,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ onBack, onAddToC
     <div className="bg-gray-50 min-h-screen flex flex-col relative pb-32">
       {/* Image Header */}
       <div className="relative h-72">
-        <img src={product.image || 'https://via.placeholder.com/400'} alt={product.name} className="w-full h-full object-cover" />
+        <img src={product.image || 'https://via.placeholder.com/400'} alt={product.name} className="w-full h-full object-cover" loading="lazy" decoding="async" fetchPriority="low" />
         <button onClick={onBack} className="absolute top-4 right-4 bg-white/80 p-2 rounded-full backdrop-blur-sm shadow-md z-10">
           <ArrowRight size={24} className="text-gray-800" />
         </button>

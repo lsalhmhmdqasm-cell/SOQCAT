@@ -17,11 +17,11 @@ class PaymentMethod extends Model
         'e_wallet_network',
         'wallet_name',
         'wallet_number',
-        'instructions'
+        'instructions',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
     public function shop()
@@ -44,7 +44,7 @@ class PaymentMethod extends Model
         if ($this->isBankTransfer()) {
             return "تحويل بنكي - {$this->bank_name}";
         }
-        
+
         return "محفظة إلكترونية - {$this->e_wallet_network}";
     }
 }

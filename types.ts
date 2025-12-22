@@ -10,6 +10,9 @@ export interface User {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  role?: string;
+  shop_id?: string | number;
   isAdmin: boolean;
   joinedAt?: string;
 }
@@ -24,6 +27,7 @@ export interface Address {
 
 export interface Product {
   id: string;
+  shop_id?: string | number;
   name: string;
   price: number;
   description: string;
@@ -51,6 +55,7 @@ export interface Order {
   status: OrderStatus;
   date: string;
   deliveryAddress: string;
+  trackingNumber?: string;
   location?: { lat: number; lng: number };
   deliveryPersonId?: string; // Assigned driver
   estimatedTime?: number; // minutes

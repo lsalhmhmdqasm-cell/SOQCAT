@@ -23,7 +23,7 @@ return new class extends Migration
             $table->date('subscription_start')->nullable();
             $table->date('subscription_end')->nullable();
             $table->timestamps();
-            
+
             $table->index('status');
             $table->index('subscription_end');
         });

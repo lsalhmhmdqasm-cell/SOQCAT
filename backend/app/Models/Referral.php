@@ -17,7 +17,7 @@ class Referral extends Model
         'status', // pending, completed, rewarded
         'referrer_reward',
         'referred_reward',
-        'completed_at'
+        'completed_at',
     ];
 
     protected $casts = [

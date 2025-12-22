@@ -1,0 +1,45 @@
+name: Backend CI (Docker + Smoke)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t qatshop-backend .
+
+      - name: Run backend container
+        run: |
+          docker run -d -p 8080:80 --name backend_test qatshop-backend
+          # Prepare SQLite DB file for migrations
+          docker exec backend_test bash -lc "mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite"
+          # Run migrations and seeds
+          docker exec backend_test php /var/www/html/artisan migrate --force
+          docker exec backend_test php /var/www/html/artisan db:seed --force
+          docker exec backend_test php /var/www/html/artisan storage:link || true
+          # Wait for server
+          sleep 5
+
+      - name: Smoke test API /products
+        shell: bash
+        run: |
+          CODE=$(curl -sSL -o /dev/null -w "%{http_code}" http://localhost:8080/api/products)
+          if [ "$CODE" -ne 200 ]; then
+            echo "Smoke test failed with status $CODE"
+            docker logs backend_test || true
+            exit 1
+          fi
+          echo "Smoke test passed: /api/products -> 200"
+
+      - name: Stop and remove container
+        if: always()
+        run: |
+          docker stop backend_test || true
+          docker rm -f backend_test || true

@@ -113,6 +113,21 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
+<script type="module">
+// تحديث وسوم iOS و theme-color ديناميكياً من تكوين المتجر
+fetch('/shops-config.json').then(r => r.json()).then(cfg => {
+  try {
+    const theme = document.querySelector('meta[name="theme-color"]');
+    if (theme && cfg?.primaryColor) theme.setAttribute('content', cfg.primaryColor);
+    const title = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    const appTitle = cfg?.appName || cfg?.shopName;
+    if (title && appTitle) title.setAttribute('content', appTitle);
+    const icon = document.querySelector('link[rel="apple-touch-icon"]');
+    if (icon && cfg?.logo) icon.setAttribute('href', cfg.logo);
+    if (cfg?.shopName) document.title = cfg.shopName;
+  } catch (e) {}
+}).catch(() => {});
+</script>
 </head>
   <body class="bg-gray-50 text-gray-900 antialiased select-none">
     <div id="root"></div>

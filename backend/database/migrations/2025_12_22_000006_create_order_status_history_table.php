@@ -15,7 +15,7 @@ return new class extends Migration
             $table->text('note')->nullable();
             $table->foreignId('updated_by')->nullable()->constrained('users');
             $table->timestamps();
-            
+
             $table->index('order_id');
         });
     }
