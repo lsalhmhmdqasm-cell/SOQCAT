@@ -1,0 +1,39 @@
+{
+  "name": "copy-of-qatshop",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview",
+    "generate-config": "node scripts/generate-config.js",
+    "build-shop": "node scripts/build-shop.js",
+    "build-all-shops": "node scripts/build-all.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^8.0.0",
+    "axios": "^1.13.2",
+    "lucide-react": "0.344.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-router-dom": "6.22.3",
+    "recharts": "2.12.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.14.0",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "terser": "^5.44.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

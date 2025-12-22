@@ -1,0 +1,7 @@
+{
+  "name": "Copy of QatShop",
+  "description": "A mobile-first responsive web shop for browsing products, managing cart, and tracking orders. Includes an admin dashboard for store management.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

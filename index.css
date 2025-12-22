@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+}
+
+:root {
+  --primary: #16a34a; /* green-600 */
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6; /* gray-100 */
+  --secondary-foreground: #1f2937;
+  --accent: #dcfce7; /* green-100 */
+  --destructive: #ef4444;
+  --background: #ffffff;
+}
+
