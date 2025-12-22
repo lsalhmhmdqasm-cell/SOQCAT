@@ -23,7 +23,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     try {
       const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/api$/, '');
-      await fetch(`${backendBase}/sanctum/csrf-cookie`, { credentials: 'include' });
+      try {
+        await fetch(`${backendBase}/sanctum/csrf-cookie`, { credentials: 'include' });
+      } catch {
+        // Ignore CSRF cookie failure and proceed with token login
+      }
       const email = phone.includes('@') ? phone : `${phone}@qatshop.com`;
       const response = await api.post('/login', { email, password });
       const { data, access_token } = response.data;
