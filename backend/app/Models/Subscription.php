@@ -8,6 +8,7 @@ class Subscription extends Model
 {
     protected $fillable = [
         'client_id',
+        'pricing_plan_id',
         'plan_name',
         'price',
         'billing_cycle',
@@ -25,6 +26,11 @@ class Subscription extends Model
     public function client()
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function pricingPlan()
+    {
+        return $this->belongsTo(PricingPlan::class);
     }
 
     public function isActive()

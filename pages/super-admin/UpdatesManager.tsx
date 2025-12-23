@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { Plus, Send, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { Pagination } from '../../components/Pagination';
+import { useLocation } from 'react-router-dom';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { Toast, ToastType } from '../../components/Toast';
 
 interface SystemUpdate {
     id: number;
@@ -29,6 +32,7 @@ export const UpdatesManager = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedUpdate, setSelectedUpdate] = useState<SystemUpdate | null>(null);
     const [stats, setStats] = useState<UpdateStats | null>(null);
+    const location = useLocation();
 
     const [formData, setFormData] = useState({
         version: '',
@@ -38,10 +42,26 @@ export const UpdatesManager = () => {
         release_date: new Date().toISOString().split('T')[0],
         is_critical: false
     });
+    const [confirm, setConfirm] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isLoading?: boolean }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+        isLoading: false
+    });
+    const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+    const showToast = (message: string, type: ToastType = 'info') => setToast({ message, type });
 
     useEffect(() => {
         fetchUpdates();
     }, [currentPage]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('create') === '1') {
+            setShowCreateModal(true);
+        }
+    }, [location.search]);
 
     const fetchUpdates = async () => {
         setLoading(true);
@@ -79,23 +99,32 @@ export const UpdatesManager = () => {
                 release_date: new Date().toISOString().split('T')[0],
                 is_critical: false
             });
-            alert('تم إنشاء التحديث بنجاح');
+            showToast('تم إنشاء التحديث بنجاح', 'success');
         } catch (error) {
-            alert('فشل إنشاء التحديث');
+            showToast('فشل إنشاء التحديث', 'error');
         }
     };
 
     const handleDeploy = async (updateId: number, target: 'all' | number[]) => {
-        if (!confirm('هل تريد نشر هذا التحديث؟')) return;
-        try {
-            await api.post(`/super-admin/updates/${updateId}/deploy`, {
-                target_clients: target
-            });
-            alert('تم نشر التحديث بنجاح');
-            fetchUpdates();
-        } catch (error) {
-            alert('فشل نشر التحديث');
-        }
+        setConfirm({
+            isOpen: true,
+            title: 'نشر التحديث',
+            message: 'هل تريد نشر هذا التحديث؟',
+            onConfirm: async () => {
+                try {
+                    await api.post(`/super-admin/updates/${updateId}/deploy`, {
+                        target_clients: target
+                    });
+                    showToast('تم نشر التحديث بنجاح', 'success');
+                    fetchUpdates();
+                } catch (error) {
+                    showToast('فشل نشر التحديث', 'error');
+                } finally {
+                    setConfirm((c) => ({ ...c, isOpen: false, isLoading: false }));
+                }
+            },
+            isLoading: false
+        });
     };
 
     const viewDetails = (update: SystemUpdate) => {
@@ -164,8 +193,8 @@ export const UpdatesManager = () => {
                                         <Send size={16} />
                                         نشر للجميع
                                     </button>
-                                </div>
-                            </div>
+                </div>
+            </div>
                         ))
                     )}
                 </div>
@@ -261,8 +290,8 @@ export const UpdatesManager = () => {
                                 </div>
                             </form>
                         </div>
-                    </div>
-                )}
+                </div>
+            )}
 
                 {/* Stats Modal */}
                 {selectedUpdate && stats && (
@@ -308,9 +337,24 @@ export const UpdatesManager = () => {
                                 إغلاق
                             </button>
                         </div>
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
+            <ConfirmDialog
+                isOpen={confirm.isOpen}
+                title={confirm.title}
+                message={confirm.message}
+                onConfirm={confirm.onConfirm}
+                onCancel={() => setConfirm((c) => ({ ...c, isOpen: false }))}
+                isLoading={confirm.isLoading}
+            />
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </div>
-    );
+    </div>
+);
 };

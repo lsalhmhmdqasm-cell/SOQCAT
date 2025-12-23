@@ -16,6 +16,9 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({ children, on
     { path: '/super-admin/clients', label: 'المحلات' },
     { path: '/super-admin/tickets', label: 'التذاكر' },
     { path: '/super-admin/updates', label: 'التحديثات' },
+    { path: '/super-admin/plans', label: 'الباقات والاشتراكات' },
+    { path: '/super-admin/leads', label: 'طلبات التواصل' },
+    { path: '/super-admin/landing', label: 'صفحة الهبوط' },
   ];
 
   const isActive = (p: string) => location.pathname === p;

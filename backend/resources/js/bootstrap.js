@@ -8,6 +8,28 @@ import axios from 'axios';
 window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+function detectPlatform() {
+    const p = (import.meta.env.VITE_PLATFORM || '').toLowerCase();
+    if (p === 'web' || p === 'android' || p === 'ios') return p;
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('android')) return 'android';
+    if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ios')) return 'ios';
+    return 'web';
+}
+window.AppConfig = window.AppConfig || {};
+window.AppConfig.platform = window.AppConfig.platform || detectPlatform();
+window.axios.defaults.headers.common['X-Client-Platform'] = window.AppConfig.platform;
+window.axios.interceptors.response.use(
+    (r) => r,
+    (e) => {
+        const status = e && e.response && e.response.status;
+        const msg = e && e.response && e.response.data && e.response.data.message;
+        if (status === 403 && msg === 'This service is not enabled for your shop') {
+            window.dispatchEvent(new CustomEvent('service-disabled', { detail: { message: msg } }));
+        }
+        return Promise.reject(e);
+    }
+);
 
 /**
  * Echo exposes an expressive API for subscribing to channels and listening

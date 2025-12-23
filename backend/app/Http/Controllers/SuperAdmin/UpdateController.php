@@ -46,16 +46,20 @@ class UpdateController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $request->validate([
-            'target_clients' => 'required|array', // 'all' or array of client IDs
-        ]);
+        if (!$request->has('target_clients')) {
+            return response()->json(['message' => 'Validation error', 'errors' => ['target_clients' => ['The target_clients field is required.']]], 422);
+        }
 
         $update = SystemUpdate::findOrFail($id);
 
-        if ($request->target_clients === 'all') {
+        if ($request->get('target_clients') === 'all') {
             $clientIds = Client::where('status', 'active')->pluck('id')->toArray();
         } else {
-            $clientIds = $request->target_clients;
+            $request->validate([
+                'target_clients' => 'array',
+                'target_clients.*' => 'integer|exists:clients,id',
+            ]);
+            $clientIds = $request->get('target_clients', []);
         }
 
         // Mark as applied

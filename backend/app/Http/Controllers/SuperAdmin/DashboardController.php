@@ -65,7 +65,7 @@ class DashboardController extends Controller
     private function calculateMonthlyRevenue()
     {
         // Calculate from subscriptions
-        return Client::where('status', 'active')
+        return Client::where('clients.status', 'active')
             ->join('subscriptions', 'clients.id', '=', 'subscriptions.client_id')
             ->where('subscriptions.status', 'active')
             ->sum('subscriptions.price');

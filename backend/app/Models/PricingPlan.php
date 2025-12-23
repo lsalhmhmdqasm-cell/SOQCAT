@@ -13,6 +13,9 @@ class PricingPlan extends Model
         'yearly_price',
         'lifetime_price',
         'features',
+        'web_enabled',
+        'android_enabled',
+        'ios_enabled',
         'max_products',
         'max_orders_per_month',
         'max_storage_mb',
@@ -26,6 +29,9 @@ class PricingPlan extends Model
         'yearly_price' => 'decimal:2',
         'lifetime_price' => 'decimal:2',
         'is_active' => 'boolean',
+        'web_enabled' => 'boolean',
+        'android_enabled' => 'boolean',
+        'ios_enabled' => 'boolean',
     ];
 
     public function hasMonthlyOption()

@@ -41,6 +41,9 @@ const SuperAdminDashboard = React.lazy(() => import('./pages/super-admin/SuperAd
 const SuperAdminClientManager = React.lazy(() => import('./pages/super-admin/ClientManager').then(module => ({ default: module.ClientManager })));
 const SuperAdminSupportTickets = React.lazy(() => import('./pages/super-admin/SupportTickets').then(module => ({ default: module.SupportTickets })));
 const SuperAdminUpdatesManager = React.lazy(() => import('./pages/super-admin/UpdatesManager').then(module => ({ default: module.UpdatesManager })));
+const SuperAdminPlans = React.lazy(() => import('./pages/super-admin/PricingPlans').then(module => ({ default: module.PricingPlans })));
+const SuperAdminLeads = React.lazy(() => import('./pages/super-admin/Leads').then(module => ({ default: module.Leads })));
+const SuperAdminLandingSettings = React.lazy(() => import('./pages/super-admin/LandingSettings').then(module => ({ default: module.LandingSettings })));
 
 // Loading Spinner for Lazy Components
 const PageLoader = () => (
@@ -226,6 +229,27 @@ const AppContent = () => {
             user && user.role === 'super_admin' ? (
               <SuperAdminLayout onLogout={handleLogout}>
                 <SuperAdminUpdatesManager />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/plans" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminPlans />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/leads" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminLeads />
+              </SuperAdminLayout>
+            ) : <Navigate to="/login" />
+          } />
+          <Route path="/super-admin/landing" element={
+            user && user.role === 'super_admin' ? (
+              <SuperAdminLayout onLogout={handleLogout}>
+                <SuperAdminLandingSettings />
               </SuperAdminLayout>
             ) : <Navigate to="/login" />
           } />

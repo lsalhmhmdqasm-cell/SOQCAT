@@ -17,6 +17,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/super-admin/onboard-shop', function () {
+    return view('super_admin.onboard_shop');
+});
+
 if (app()->environment('local')) {
     Route::get('/setup-db', function () {
         if (request('key') !== config('app.key')) {
@@ -41,5 +45,18 @@ if (app()->environment('local')) {
                 'trace' => $e->getTraceAsString(),
             ], 500);
         }
+    });
+    
+    Route::get('/dev/token', function () {
+        $user = \App\Models\User::where('email', 'admin@qatshop.com')->first();
+        if (! $user) {
+            return response()->json(['error' => 'Super Admin not found'], 404);
+        }
+        $token = $user->createToken('auth_token')->plainTextToken;
+        return response()->json(['access_token' => $token, 'token_type' => 'Bearer']);
+    });
+    
+    Route::get('/dev/users', function () {
+        return \App\Models\User::select('id', 'name', 'email', 'phone', 'role')->get();
     });
 }

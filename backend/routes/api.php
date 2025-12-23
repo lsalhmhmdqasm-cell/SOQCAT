@@ -11,6 +11,8 @@ use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SuperAdmin\ClientController as SAClientController;
+use App\Http\Controllers\LeadController;
+use App\Http\Controllers\PlatformLandingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +30,12 @@ use Illuminate\Support\Facades\Route;
 // Public Routes
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/leads', [LeadController::class, 'store'])->middleware('throttle:20,1');
+Route::get('/platform/landing', [PlatformLandingController::class, 'show']);
+Route::get('/platform/pricing-plans', [PlatformLandingController::class, 'publicPricing']);
+Route::get('/platform/partners', [PlatformLandingController::class, 'partners']);
+Route::get('/platform/stats', [PlatformLandingController::class, 'stats']);
+Route::get('/platform/testimonials', [PlatformLandingController::class, 'testimonials']);
 
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
@@ -45,6 +53,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    // Super Admin: Leads management
+    Route::get('/super-admin/leads', [LeadController::class, 'index']);
+    Route::put('/super-admin/leads/{id}', [LeadController::class, 'update']);
+    Route::get('/super-admin/platform/landing', [PlatformLandingController::class, 'adminShow']);
+    Route::put('/super-admin/platform/landing', [PlatformLandingController::class, 'update']);
+    Route::post('/super_admin/pricing-plans', [SAClientController::class, 'storePlan']);
+    Route::put('/super_admin/pricing-plans/{id}', [SAClientController::class, 'updatePlan']);
+    Route::delete('/super_admin/pricing-plans/{id}', [SAClientController::class, 'deletePlan']);
+    Route::post('/super_admin/pricing-plans/{id}/toggle', [SAClientController::class, 'togglePlan']);
+
     // Image Upload
     Route::post('/upload', [ImageController::class, 'store']);
 
@@ -57,7 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/referrals', [ReferralController::class, 'store']);
 
     // User Orders
-    Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('service.enabled');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
 
@@ -92,7 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/images', [\App\Http\Controllers\ImageController::class, 'deleteImage']);
 
     // Shop Admin protected routes
-    Route::middleware('shop.admin')->group(function () {
+    Route::middleware(['shop.admin', 'service.enabled'])->group(function () {
         // Payment Methods
         Route::get('/payment-methods', [PaymentMethodController::class, 'shopMethods']); // Shop Admin
         Route::post('/payment-methods', [PaymentMethodController::class, 'store']);
@@ -158,4 +176,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/super_admin/clients/{id}/assign-plan', [SAClientController::class, 'assignPlan']);
     Route::get('/super_admin/clients/{id}/features', [SAClientController::class, 'features']);
     Route::get('/super_admin/clients/{id}/sla', [SAClientController::class, 'sla']);
+
+    // Super Admin: Clients management
+    Route::get('/super-admin/clients', [SAClientController::class, 'index']);
+    Route::post('/super-admin/clients', [SAClientController::class, 'store']);
+    Route::put('/super-admin/clients/{id}', [SAClientController::class, 'update']);
+    Route::put('/super-admin/clients/{id}/suspend', [SAClientController::class, 'suspend']);
+    Route::put('/super-admin/clients/{id}/activate', [SAClientController::class, 'activate']);
+    Route::put('/super-admin/clients/{id}/extend', [SAClientController::class, 'extend']);
+    Route::delete('/super-admin/clients/{id}', [SAClientController::class, 'destroy']);
+
+    // Super Admin: Onboard shop
+    Route::post('/super-admin/onboard-shop', [\App\Http\Controllers\SuperAdmin\OnboardingController::class, 'onboardShop']);
 });

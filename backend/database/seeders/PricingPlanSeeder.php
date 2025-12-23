@@ -16,6 +16,9 @@ class PricingPlanSeeder extends Seeder
                 'monthly_price' => 3000,
                 'yearly_price' => 30000, // خصم 17%
                 'lifetime_price' => 100000,
+                'web_enabled' => true,
+                'android_enabled' => false,
+                'ios_enabled' => false,
                 'features' => [
                     'products' => 50,
                     'orders' => 100,
@@ -37,6 +40,9 @@ class PricingPlanSeeder extends Seeder
                 'monthly_price' => 5000,
                 'yearly_price' => 50000, // خصم 17%
                 'lifetime_price' => 180000,
+                'web_enabled' => false,
+                'android_enabled' => true,
+                'ios_enabled' => false,
                 'features' => [
                     'products' => 'unlimited',
                     'orders' => 'unlimited',
@@ -59,6 +65,9 @@ class PricingPlanSeeder extends Seeder
                 'monthly_price' => 10000,
                 'yearly_price' => 100000, // خصم 17%
                 'lifetime_price' => 350000,
+                'web_enabled' => true,
+                'android_enabled' => true,
+                'ios_enabled' => true,
                 'features' => [
                     'products' => 'unlimited',
                     'orders' => 'unlimited',

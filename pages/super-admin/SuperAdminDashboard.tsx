@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import { Users, DollarSign, AlertCircle, Package, TrendingUp, Activity, Gauge, Timer } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { echo } from '../../services/echo';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface Stats {
     total_clients: number;
@@ -16,6 +17,8 @@ interface Stats {
 }
 
 export const SuperAdminDashboard = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [stats, setStats] = useState<Stats | null>(null);
     const [monitoring, setMonitoring] = useState<{
         crash_free_rate: number;
@@ -35,7 +38,8 @@ export const SuperAdminDashboard = () => {
     const [alerts, setAlerts] = useState<Array<{ type: string; value: number; threshold: number }>>([]);
     const [topEndpoints, setTopEndpoints] = useState<Array<{ path: string; total: number; errors: number; error_rate: number }>>([]);
     const [topExceptions, setTopExceptions] = useState<Array<{ exception_class: string; total: number }>>([]);
-    const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
+    const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+    const [showReports, setShowReports] = useState<boolean>(false);
 
     useEffect(() => {
         fetchStats();
@@ -97,6 +101,13 @@ export const SuperAdminDashboard = () => {
             echo.leaveChannel('superadmin.alerts');
         };
     }, []);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('reports') === '1') {
+            setShowReports(true);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         if (!autoRefresh) return;
@@ -198,7 +209,7 @@ export const SuperAdminDashboard = () => {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-bold text-gray-700">مرشحات المراقبة</h3>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <div>
                             <label className="text-sm text-gray-600">المحل</label>
                             <select className="w-full border rounded-lg p-2" value={shopId || ''} onChange={(e) => setShopId(e.target.value ? Number(e.target.value) : null)}>
@@ -263,6 +274,67 @@ export const SuperAdminDashboard = () => {
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
+                    </div>
+                )}
+
+                {showReports && topEndpoints.length > 0 && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-gray-700">المسارات الأكثر أخطاء</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-gray-600">
+                                        <th className="py-2">المسار</th>
+                                        <th className="py-2">الطلبات</th>
+                                        <th className="py-2">الأخطاء</th>
+                                        <th className="py-2">نسبة الخطأ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topEndpoints.map((e, idx) => (
+                                        <tr key={idx} className="border-t">
+                                            <td className="py-2">{e.path}</td>
+                                            <td className="py-2">{e.total}</td>
+                                            <td className="py-2 text-red-600">{e.errors}</td>
+                                            <td className="py-2">{e.error_rate}%</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {showReports && topExceptions.length > 0 && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-gray-700">الأخطاء الأكثر تكراراً</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-gray-600">
+                                        <th className="py-2">الاستثناء</th>
+                                        <th className="py-2">عدد التكرارات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {topExceptions.map((ex, idx) => (
+                                        <tr key={idx} className="border-t">
+                                            <td className="py-2">{ex.exception_class}</td>
+                                            <td className="py-2">{ex.total}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+                {showReports && topEndpoints.length === 0 && topExceptions.length === 0 && (
+                    <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
+                        <div className="text-center text-gray-600">لا توجد بيانات تقارير للفترة المحددة</div>
                     </div>
                 )}
 
@@ -347,18 +419,21 @@ export const SuperAdminDashboard = () => {
                 {/* Quick Actions */}
                 <div className="bg-white p-6 rounded-xl shadow-sm">
                     <h3 className="font-bold text-lg mb-4">إجراءات سريعة</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <button className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <button onClick={() => navigate('/super-admin/clients')} className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition">
                             إضافة محل جديد
                         </button>
-                        <button className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition">
+                        <button onClick={() => navigate('/super-admin/updates?create=1')} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition">
                             إنشاء تحديث
                         </button>
-                        <button className="bg-purple-500 text-white px-6 py-3 rounded-lg hover:bg-purple-600 transition">
+                        <button onClick={() => navigate('/super-admin/tickets')} className="bg-purple-500 text-white px-6 py-3 rounded-lg hover:bg-purple-600 transition">
                             عرض التذاكر
                         </button>
-                        <button className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition">
+                        <button onClick={() => navigate('/super-admin/dashboard?reports=1')} className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition">
                             التقارير
+                        </button>
+                        <button onClick={() => navigate('/super-admin/plans')} className="bg-indigo-500 text-white px-6 py-3 rounded-lg hover:bg-indigo-600 transition">
+                            الباقات والاشتراكات
                         </button>
                     </div>
                 </div>

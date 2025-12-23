@@ -82,7 +82,7 @@ export const useOrderTracking = (trackingNumber: string) => {
         const userChannelName = `orders.${(order as any).user_id || ''}`;
         if (!userChannelName) return;
 
-        const channel = echo.channel(userChannelName);
+        const channel = (echo as any).private ? (echo as any).private(userChannelName) : echo.channel(userChannelName);
         channel.listen('.order.status.updated', (e: any) => {
             if (e?.order?.tracking_number === order.tracking_number) {
                 setOrder(e.order);

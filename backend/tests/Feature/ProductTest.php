@@ -23,6 +23,14 @@ class ProductTest extends TestCase
         parent::setUp();
 
         $this->shop = Shop::factory()->create();
+        $this->shop->update([
+            'web_status' => 'active',
+            'web_provisioned_at' => now(),
+            'android_status' => 'active',
+            'android_provisioned_at' => now(),
+            'ios_status' => 'active',
+            'ios_provisioned_at' => now(),
+        ]);
         $this->admin = User::factory()->create([
             'role' => 'shop_admin',
             'shop_id' => $this->shop->id,

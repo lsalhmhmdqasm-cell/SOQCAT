@@ -1,48 +1,54 @@
-// WebSocket configuration for real-time updates
-// NOTE: This requires installing laravel-echo and pusher-js:
-// npm install laravel-echo pusher-js
-
-// Uncomment when packages are installed:
-/*
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
 declare global {
   interface Window {
     Pusher: any;
-    Echo: any;
   }
 }
 
 window.Pusher = Pusher;
 
-export const echo = new Echo({
-  broadcaster: 'pusher',
-  key: process.env.VITE_PUSHER_APP_KEY || 'your-pusher-key',
-  cluster: process.env.VITE_PUSHER_APP_CLUSTER || 'mt1',
-  forceTLS: true,
-  authEndpoint: 'http://localhost:8000/broadcasting/auth',
-  auth: {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
+function buildEcho(): any {
+  try {
+    const key = (import.meta as any).env?.VITE_PUSHER_APP_KEY || '';
+    const cluster = (import.meta as any).env?.VITE_PUSHER_APP_CLUSTER || 'mt1';
+    if (!key) {
+      throw new Error('Missing VITE_PUSHER_APP_KEY');
     }
-  }
-});
-
-export default echo;
-*/
-
-// Temporary placeholder until packages are installed
-export const echo = {
-    channel: (name: string) => ({
-        listen: (event: string, callback: (data: any) => void) => {
-            console.log(`WebSocket not configured. Would listen to ${event} on ${name}`);
-            return { listen: () => { } };
+    const token = (() => {
+      try { return localStorage.getItem('accessToken') || ''; } catch { return ''; }
+    })();
+    return new Echo({
+      broadcaster: 'pusher',
+      key,
+      cluster,
+      forceTLS: true,
+      authEndpoint: 'http://localhost:8000/broadcasting/auth',
+      auth: {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    });
+  } catch (e) {
+    return {
+      private: (name: string) => ({
+        listen: (_event: string, _callback: (data: any) => void) => {
+          console.log(`Echo fallback: private ${name}`);
+          return { listen: () => {} };
         }
-    }),
-    leaveChannel: (name: string) => {
-        console.log(`WebSocket not configured. Would leave ${name}`);
-    }
-};
+      }),
+      channel: (name: string) => ({
+        listen: (_event: string, _callback: (data: any) => void) => {
+          console.log(`Echo fallback: channel ${name}`);
+          return { listen: () => {} };
+        }
+      }),
+      leaveChannel: (name: string) => {
+        console.log(`Echo fallback: leave ${name}`);
+      }
+    };
+  }
+}
 
+export const echo = buildEcho();
 export default echo;
