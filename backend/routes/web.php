@@ -25,6 +25,12 @@ Route::get('/run-production-seed', function () {
     }
     
     try {
+        // 0. Run Migrations FIRST (Build Tables)
+        \Illuminate\Support\Facades\Artisan::call('migrate', [
+            '--force' => true
+        ]);
+        $migrateOutput = \Illuminate\Support\Facades\Artisan::output();
+
         // 1. Create Shop #1
         \Illuminate\Support\Facades\Artisan::call('db:seed', [
             '--class' => 'ProductionShopSeeder', 
@@ -39,7 +45,7 @@ Route::get('/run-production-seed', function () {
         ]);
         $adminOutput = \Illuminate\Support\Facades\Artisan::output();
         
-        return "<h1>Setup Completed Successfully!</h1><pre>Shop Seeder:\n$shopOutput\n\nAdmin Seeder:\n$adminOutput</pre>";
+        return "<h1>Setup Completed Successfully!</h1><pre>Migrations:\n$migrateOutput\n\nShop Seeder:\n$shopOutput\n\nAdmin Seeder:\n$adminOutput</pre>";
 
     } catch (\Exception $e) {
         return "<h1>Error!</h1><pre>" . $e->getMessage() . "</pre>";
