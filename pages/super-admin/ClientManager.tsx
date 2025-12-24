@@ -35,7 +35,8 @@ export const ClientManager = () => {
         domain: '',
         subscription_type: 'monthly',
         pricing_plan_id: '',
-        price: 0
+        price: 0,
+        admin_password: ''
     });
     const [assignModal, setAssignModal] = useState<{ open: boolean; clientId: number | null }>({ open: false, clientId: null });
     const [assignForm, setAssignForm] = useState({ pricing_plan_id: '', billing_cycle: 'monthly' });
@@ -327,6 +328,16 @@ export const ClientManager = () => {
                                 <label className="block text-sm font-bold mb-2">الدومين</label>
                                 <input className="w-full px-4 py-2 border rounded-lg" value={createForm.domain} onChange={(e) => setCreateForm({ ...createForm, domain: e.target.value })} placeholder="shop1.qatshop.com" />
                             </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-bold mb-2">كلمة مرور مدير المحل (اختياري)</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-2 border rounded-lg"
+                                    placeholder="اتركه فارغاً لإنشاء كلمة مرور تلقائياً"
+                                    value={createForm.admin_password}
+                                    onChange={(e) => setCreateForm({ ...createForm, admin_password: e.target.value })}
+                                />
+                            </div>
                             <div>
                                 <label className="block text-sm font-bold mb-2">الباقة</label>
                                 <select className="w-full px-4 py-2 border rounded-lg" value={createForm.pricing_plan_id} onChange={(e) => {
@@ -363,11 +374,16 @@ export const ClientManager = () => {
                             <button
                                 onClick={async () => {
                                     try {
-                                        await api.post('/super-admin/clients', createForm);
+                                        const res = await api.post('/super-admin/clients', createForm);
                                         setShowModal(false);
-                                        setCreateForm({ shop_name: '', owner_name: '', email: '', phone: '', domain: '', subscription_type: 'monthly', pricing_plan_id: '', price: 0 });
+                                        setCreateForm({ shop_name: '', owner_name: '', email: '', phone: '', domain: '', subscription_type: 'monthly', pricing_plan_id: '', price: 0, admin_password: '' });
                                         fetchClients();
-                                        showToast('تم إنشاء المحل بنجاح', 'success');
+                                        const admin = res?.data?.admin_user;
+                                        if (admin?.email && admin?.password) {
+                                            showToast(`تم إنشاء المحل بنجاح. بيانات مدير المحل: البريد ${admin.email} ، كلمة المرور ${admin.password}`, 'success');
+                                        } else {
+                                            showToast('تم إنشاء المحل بنجاح', 'success');
+                                        }
                                     } catch {
                                         showToast('فشل إنشاء المحل', 'error');
                                     }

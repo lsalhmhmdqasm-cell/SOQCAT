@@ -9,8 +9,11 @@ use App\Jobs\ProvisionWebShop;
 use App\Models\Client;
 use App\Models\PricingPlan;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -67,11 +70,12 @@ class ClientController extends Controller
             'domain' => 'required|string|unique:clients,domain',
             'subscription_type' => 'required|in:monthly,yearly,lifetime',
             'pricing_plan_id' => 'required|integer|exists:pricing_plans,id',
+            'admin_password' => 'nullable|string|min:8',
         ]);
 
         $plan = PricingPlan::findOrFail((int) $validated['pricing_plan_id']);
 
-        return DB::transaction(function () use ($validated, $plan) {
+        return DB::transaction(function () use ($validated, $plan, $request) {
             $client = Client::create([
                 'shop_name' => $validated['shop_name'],
                 'owner_name' => $validated['owner_name'],
@@ -97,6 +101,18 @@ class ClientController extends Controller
             $client->shop_id = $shop->id;
             $client->save();
 
+            // Auto-create Shop Admin user to manage this shop
+            // Uses client email; password from request or generated
+            $rawPassword = $request->input('admin_password') ?: Str::random(16);
+            $adminUser = User::create([
+                'name' => $validated['owner_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($rawPassword),
+                'phone' => $validated['phone'],
+                'role' => 'shop_admin',
+                'shop_id' => $shop->id,
+            ]);
+
             if ($shop->enable_web && $shop->web_status === 'pending') {
                 ProvisionWebShop::dispatch($shop->id)->afterCommit();
             }
@@ -121,7 +137,15 @@ class ClientController extends Controller
                 'next_billing_date' => now()->addMonth(),
             ]);
 
-            return response()->json($client->load('subscription'), 201);
+            return response()->json([
+                'client' => $client->load('subscription'),
+                'shop' => $shop,
+                'admin_user' => [
+                    'id' => $adminUser->id,
+                    'email' => $adminUser->email,
+                    'password' => $rawPassword, // return plain for initial sharing; recommend change after first login
+                ],
+            ], 201);
         });
     }
 
