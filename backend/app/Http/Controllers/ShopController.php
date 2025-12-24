@@ -12,7 +12,15 @@ class ShopController extends Controller
     {
         if ($request->user()?->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
-            public function config(Request $request)
+        }
+
+        return Shop::query()
+            ->select(['id', 'name'])
+            ->orderByDesc('id')
+            ->get();
+    }
+
+    public function config(Request $request)
     {
         $shop = $request->shop; // Injected by IdentifyTenant middleware
         
@@ -37,13 +45,6 @@ class ShopController extends Controller
                  'ios' => $shop->enable_ios,
             ]
         ]);
-    }
-}
-
-        return Shop::query()
-            ->select(['id', 'name'])
-            ->orderByDesc('id')
-            ->get();
     }
 
     public function store(Request $request)
