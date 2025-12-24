@@ -13,17 +13,18 @@ class CategoryController extends Controller
      */
     public function index(Request $request)
     {
-        $shopId = $request->input('shop_id');
-        if (! is_numeric($shopId)) {
-            $shopId = $request->header('X-Shop-Id');
+        // Resolve shop via IdentifyTenant middleware (preferred)
+        $shop = $request->shop;
+        if (! $shop) {
+            // Fallbacks for legacy callers
+            $shopId = $request->input('shop_id') ?? $request->header('X-Shop-Id') ?? $request->user()?->shop_id;
+            if (! is_numeric($shopId)) {
+                return response()->json(['message' => 'shop_id is required'], 422);
+            }
+            $shopId = (int) $shopId;
+        } else {
+            $shopId = (int) $shop->id;
         }
-        if (! is_numeric($shopId)) {
-            $shopId = $request->user()?->shop_id;
-        }
-        if (! is_numeric($shopId)) {
-            return response()->json(['message' => 'shop_id is required'], 422);
-        }
-        $shopId = (int) $shopId;
 
         $categories = Category::where('shop_id', $shopId)->active()->ordered()->get();
 

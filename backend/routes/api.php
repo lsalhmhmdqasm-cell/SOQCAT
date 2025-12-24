@@ -37,6 +37,9 @@ Route::get('/platform/partners', [PlatformLandingController::class, 'partners'])
 Route::get('/platform/stats', [PlatformLandingController::class, 'stats']);
 Route::get('/platform/testimonials', [PlatformLandingController::class, 'testimonials']);
 
+// Shop public config (tenant resolved by IdentifyTenant)
+Route::get('/shop/config', [ShopController::class, 'config']);
+
 Route::get('/products', [ProductController::class, 'index'])->middleware('service.enabled');
 Route::get('/products/{id}', [ProductController::class, 'show'])->middleware('service.enabled');
 Route::get('/products/{id}/recommendations', [ProductController::class, 'recommendations'])->middleware('service.enabled');
@@ -45,6 +48,7 @@ Route::get('/shops/{shop}', [ShopController::class, 'show'])->middleware('servic
 Route::get('/shops/{shop}/settings', [ShopController::class, 'settingsPublic'])->middleware('service.enabled');
 
 Route::get('/shops/{shop}/payment-methods', [PaymentMethodController::class, 'index'])->middleware('service.enabled');
+Route::get('/categories', [\App\Http\Controllers\CategoryController::class, 'index'])->middleware('service.enabled');
 
 // Private Routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -52,7 +56,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::get('/shop/config', [ShopController::class, 'config']);
 Route::get('/shops', [ShopController::class, 'index']);
 
     // Super Admin: Leads management
@@ -84,7 +87,7 @@ Route::get('/shops', [ShopController::class, 'index']);
         Route::post('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'store']);
         Route::delete('/system-updates/{id}', [\App\Http\Controllers\SystemUpdateController::class, 'destroy']);
 
-        Route::get('/categories', [\App\Http\Controllers\CategoryController::class, 'index']);
+        
 
         Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
         Route::post('/wishlist/{productId}', [\App\Http\Controllers\WishlistController::class, 'toggle']);
