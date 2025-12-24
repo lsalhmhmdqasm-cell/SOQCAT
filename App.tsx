@@ -86,6 +86,10 @@ const AppContent = () => {
   const location = useLocation();
   const { user, cart, shopSettings, isLoading: isContextLoading, addToCart, updateCartQuantity, removeFromCart, login, logout } = useShop();
 
+  // Determine if we are in Platform Mode or Shop Mode
+  // If shopName is default and we don't have a forced ID, we are likely on platform landing
+  const isPlatformMode = shopSettings.shopName === 'منصة قات شوب' && !import.meta.env.VITE_SHOP_ID;
+
   // Handle Android Back Button
   useEffect(() => {
     CapacitorApp.addListener('backButton', ({ canGoBack }) => {
@@ -209,8 +213,13 @@ const AppContent = () => {
     '/notifications',
     '/support',
     '/super-admin',
-    '/' // Hide Nav on Landing Page
   ];
+  
+  // Conditionally add '/' to hidden routes ONLY if we are in Platform Mode
+  if (isPlatformMode) {
+      hideNavRoutes.push('/');
+  }
+
   // Ensure we check exact match for '/' or prefix for others
   const shouldShowNav = !hideNavRoutes.some(route => {
     if (route === '/') return location.pathname === '/';
@@ -228,8 +237,10 @@ const AppContent = () => {
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* SaaS Landing Page is now Home */}
-          <Route path="/" element={<PlatformLanding />} />
+          {/* DYNAMIC ROOT ROUTE */}
+          <Route path="/" element={
+              isPlatformMode ? <PlatformLanding /> : <Home onProductClick={(p) => navigate(`/product/${p.id}`)} addToCart={(p) => { addToCart(p); showToast('تمت الإضافة للسلة'); }} />
+          } />
 
           {/* Login for Admin */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
@@ -294,11 +305,8 @@ const AppContent = () => {
             ) : <Navigate to="/login" />
           } />
 
-          {/* Demo Store Routes (Optional: moved to /demo if needed, or kept accessible via direct link for testing) 
-              For now, we keep them accessible but deeper, or just remove Home route. 
-              Let's Keep 'Home' accessible via /store for demo purposes? 
-              User asked specifically for Main Page to be Landing. 
-          */}
+          {/* Store Routes */}
+          {/* Also keep /store accessible explicitly if needed, but / is now dynamic */}
           <Route path="/store" element={<Home onProductClick={(p) => navigate(`/product/${p.id}`)} addToCart={(p) => { addToCart(p); showToast('تمت الإضافة للسلة'); }} />} />
 
           <Route path="/product/:id" element={
@@ -314,7 +322,7 @@ const AppContent = () => {
               isGuest={!user}
               onUpdateQuantity={updateCartQuantity}
               onRemove={(id) => { removeFromCart(id); showToast('تم الحذف', 'warning'); }}
-              onBack={() => navigate('/store')} // Back to Store
+              onBack={() => navigate('/')} 
               onCheckout={() => {
                 if (user) {
                   navigate('/checkout');
@@ -365,7 +373,7 @@ const AppContent = () => {
       </Suspense>
 
       {/* Only show BottomNav if inside the Store part (e.g. /store, /orders) AND not in hidden routes */}
-      {shouldShowNav && location.pathname !== '/' && (
+      {shouldShowNav && (isPlatformMode ? location.pathname !== '/' : true) && (
         <BottomNav cartCount={cartCount} onNavigate={navigate} isAdmin={false} />
       )}
     </div>

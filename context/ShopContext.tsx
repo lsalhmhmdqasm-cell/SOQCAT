@@ -23,33 +23,35 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Default Settings (Platform Mode)
     const [shopSettings, setShopSettings] = useState<AppSettings>({
         shopName: 'منصة قات شوب',
         logo: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
         deliveryFee: 1000,
     });
 
-    // SaaS Loading: Fetch config from backend based on current domain
+    // SaaS Loading: Fetch config from backend based on current domain or Env Var
     useEffect(() => {
         const loadSaaSConfig = async () => {
             try {
-                // If we are on localhost and VITE_SHOP_ID is set, we might send it as hint or rely on IdentifyTenant fallback
-                // But generally, we just call the endpoint.
+                // Check if we have a forced Shop ID (e.g. from Render Env Var)
+                const forcedShopId = import.meta.env.VITE_SHOP_ID;
                 
-                // Skip if we are explicitly on the main platform domain (e.g. www.qatshop.com)
-                // For now, let's assume the backend handles the "Not Found" case for the landing page.
-
+                // If we have a forced ID, we can optimistically set some defaults or rely on backend
+                // But mainly, we call the API. The API Interceptor (in api.ts) handles sending the ID/Header.
+                
                 const res = await api.get('/shop/config');
                 const config = res.data;
                 
-                // Update Settings
+                // Update Settings from Backend
                 setShopSettings({
-                    shopName: config?.shopName || 'منصة قات شوب',
+                    shopName: config?.shopName || (forcedShopId ? 'Loading Shop...' : 'منصة قات شوب'),
                     logo: config?.logo || 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
                     deliveryFee: typeof config?.deliveryFee === 'number' ? config.deliveryFee : 1000,
                 });
 
-                // Persist minimal config for API calls if needed (though backend handles it)
+                // Persist minimal config
                 localStorage.setItem('shopConfig', JSON.stringify(config));
 
                 // Apply Theme
@@ -65,7 +67,10 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
 
             } catch (err) {
                 console.log('Running in Platform Mode or Shop Not Found', err);
-                // We might be on the landing page, so we keep default settings
+                
+                // Fallback: If we have VITE_SHOP_ID but API failed, we might still want to show "Shop Mode"
+                // rather than Platform Landing. But without data, it's hard.
+                // However, since we fixed the Backend to accept X-Shop-Id, this catch block shouldn't trigger for valid shops.
             }
         };
 
@@ -158,7 +163,6 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const clearCart = () => setCart([]);
 
     const updateShopSettings = (patch: Partial<AppSettings> & { primaryColor?: string; secondaryColor?: string; features?: Record<string, any> }) => {
-        // Optimistic UI update only - Real update happens via Admin API
         setShopSettings(prev => ({ ...prev, ...patch }));
     };
 
