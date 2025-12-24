@@ -35,6 +35,5 @@ Route::middleware(['auth:sanctum'])->prefix('super-admin')->group(function () {
     Route::post('/updates/{id}/deploy', [UpdateController::class, 'deploy']);
     Route::get('/updates/{id}/stats', [UpdateController::class, 'getStats']);
 
-    // Maintenance: Run migrations (free hosting without terminal)
     Route::post('/maintenance/migrate', [UpdateController::class, 'migrate']);
 });

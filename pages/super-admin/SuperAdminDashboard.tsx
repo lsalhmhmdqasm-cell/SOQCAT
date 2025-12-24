@@ -40,6 +40,9 @@ export const SuperAdminDashboard = () => {
     const [topExceptions, setTopExceptions] = useState<Array<{ exception_class: string; total: number }>>([]);
     const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
     const [showReports, setShowReports] = useState<boolean>(false);
+    const [isMigrating, setIsMigrating] = useState<boolean>(false);
+    const [migrateOutput, setMigrateOutput] = useState<string>('');
+    const [migrateError, setMigrateError] = useState<string>('');
 
     useEffect(() => {
         fetchStats();
@@ -137,6 +140,21 @@ export const SuperAdminDashboard = () => {
         URL.revokeObjectURL(url);
     };
 
+    const runMigrations = async () => {
+        setIsMigrating(true);
+        setMigrateOutput('');
+        setMigrateError('');
+        try {
+            const res = await api.post('/super-admin/maintenance/migrate');
+            setMigrateOutput((res.data?.output || res.data?.message || 'تم تنفيذ المايجريشن بنجاح').trim());
+            await fetchStats();
+        } catch (e: any) {
+            setMigrateError(e?.response?.data?.error || e?.response?.data?.message || 'فشل تنفيذ المايجريشن');
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
     if (loading) {
         return <div className="p-6">جاري التحميل...</div>;
     }
@@ -173,6 +191,31 @@ export const SuperAdminDashboard = () => {
                         color="orange"
                         urgent={stats?.urgent_tickets || 0}
                     />
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-gray-700">أدوات الصيانة</h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={runMigrations}
+                            disabled={isMigrating}
+                            className={`px-6 py-3 rounded-lg text-white transition ${isMigrating ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                        >
+                            {isMigrating ? 'جارٍ تنفيذ المايجريشن...' : 'تشغيل المايجريشن'}
+                        </button>
+                    </div>
+                    {migrateOutput && (
+                        <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-700 whitespace-pre-wrap">
+                            {migrateOutput}
+                        </div>
+                    )}
+                    {migrateError && (
+                        <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                            {migrateError}
+                        </div>
+                    )}
                 </div>
 
                 {/* Monitoring Grid */}
