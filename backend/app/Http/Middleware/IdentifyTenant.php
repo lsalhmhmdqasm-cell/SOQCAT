@@ -47,6 +47,14 @@ class IdentifyTenant
             }
         }
 
+        // 3b. Fallback: Check query parameter `shop_id` (Render/temporary hosts)
+        if (!$shop) {
+            $shopId = $request->query('shop_id');
+            if (is_numeric($shopId)) {
+                $shop = Shop::find((int) $shopId);
+            }
+        }
+
         // 4. Bind to Request
         if ($shop) {
             if ($shop->status !== 'active') {

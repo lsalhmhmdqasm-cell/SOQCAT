@@ -41,7 +41,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
                 // If we have a forced ID, we can optimistically set some defaults or rely on backend
                 // But mainly, we call the API. The API Interceptor (in api.ts) handles sending the ID/Header.
                 
-                const res = await api.get('/shop/config');
+                const res = await api.get('/shop/config', { params: forcedShopId ? { shop_id: forcedShopId } : undefined });
                 const config = res.data;
                 
                 // Update Settings from Backend

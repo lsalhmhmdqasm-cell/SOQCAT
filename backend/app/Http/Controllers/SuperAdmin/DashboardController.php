@@ -10,6 +10,7 @@ use App\Models\SupportTicket;
 use App\Models\SystemUpdate;
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use App\Events\MonitoringAlert;
 
@@ -17,30 +18,29 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // Check if user is super admin
-        if ($request->user()->role !== 'super_admin') {
+        $user = $request->user();
+        if (! $user || $user->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $stats = [
-            'total_clients' => Client::count(),
-            'active_clients' => Client::where('status', 'active')->count(),
-            'trial_clients' => Client::where('status', 'trial')->count(),
-            'suspended_clients' => Client::where('status', 'suspended')->count(),
-            'expired_clients' => Client::where('status', 'expired')->count(),
+            'total_clients' => Schema::hasTable('clients') ? Client::count() : 0,
+            'active_clients' => Schema::hasTable('clients') ? Client::where('status', 'active')->count() : 0,
+            'trial_clients' => Schema::hasTable('clients') ? Client::where('status', 'trial')->count() : 0,
+            'suspended_clients' => Schema::hasTable('clients') ? Client::where('status', 'suspended')->count() : 0,
+            'expired_clients' => Schema::hasTable('clients') ? Client::where('status', 'expired')->count() : 0,
 
-            'open_tickets' => SupportTicket::whereIn('status', ['open', 'in_progress'])->count(),
-            'urgent_tickets' => SupportTicket::where('priority', 'urgent')->where('status', '!=', 'closed')->count(),
+            'open_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::whereIn('status', ['open', 'in_progress'])->count() : 0,
+            'urgent_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::where('priority', 'urgent')->where('status', '!=', 'closed')->count() : 0,
 
-            'pending_updates' => SystemUpdate::whereDate('release_date', '<=', now())->count(),
+            'pending_updates' => Schema::hasTable('system_updates') ? SystemUpdate::whereDate('release_date', '<=', now())->count() : 0,
 
-            'monthly_revenue' => $this->calculateMonthlyRevenue(),
-            'total_orders_today' => Order::whereDate('created_at', today())->count(),
+            'monthly_revenue' => $this->safeMonthlyRevenue(),
+            'total_orders_today' => Schema::hasTable('orders') ? Order::whereDate('created_at', today())->count() : 0,
         ];
 
-        // Recent activity
-        $recent_clients = Client::latest()->take(5)->get();
-        $recent_tickets = SupportTicket::with('client')->latest()->take(5)->get();
+        $recent_clients = Schema::hasTable('clients') ? Client::latest()->take(5)->get() : collect();
+        $recent_tickets = Schema::hasTable('support_tickets') ? SupportTicket::with('client')->latest()->take(5)->get() : collect();
 
         $monitoring = $this->buildMonitoringMetrics();
 
@@ -62,18 +62,37 @@ class DashboardController extends Controller
         return response()->json($response);
     }
 
-    private function calculateMonthlyRevenue()
+    private function safeMonthlyRevenue()
     {
-        // Calculate from subscriptions
-        return Client::where('clients.status', 'active')
-            ->join('subscriptions', 'clients.id', '=', 'subscriptions.client_id')
-            ->where('subscriptions.status', 'active')
-            ->sum('subscriptions.price');
+        if (! Schema::hasTable('subscriptions') || ! Schema::hasTable('clients')) {
+            return 0;
+        }
+        try {
+            return Client::where('clients.status', 'active')
+                ->join('subscriptions', 'clients.id', '=', 'subscriptions.client_id')
+                ->where('subscriptions.status', 'active')
+                ->sum('subscriptions.price');
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     private function buildMonitoringMetrics(): array
     {
         $from = now()->subDay();
+
+        if (! Schema::hasTable('request_metrics')) {
+            return [
+                'crash_free_rate' => 100.0,
+                'avg_response_ms' => 0,
+                'p95_response_ms' => 0,
+                'products_p95_ms' => 0,
+                'order_success_rate' => 0.0,
+                'requests_last_24h' => 0,
+                'errors_last_24h' => 0,
+                'shops_worst' => collect(),
+            ];
+        }
 
         $totalRequests = RequestMetric::where('created_at', '>=', $from)->count();
         $errorRequests = RequestMetric::where('created_at', '>=', $from)->where('status_code', '>=', 500)->count();
@@ -128,13 +147,34 @@ class DashboardController extends Controller
 
     public function metrics(Request $request)
     {
-        if ($request->user()->role !== 'super_admin') {
+        $user = $request->user();
+        if (! $user || $user->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $from = $request->filled('from') ? \Carbon\Carbon::parse($request->get('from')) : now()->subDay();
         $to = $request->filled('to') ? \Carbon\Carbon::parse($request->get('to')) : now();
         $shopId = $request->get('shop_id');
+
+        if (! Schema::hasTable('request_metrics')) {
+            return response()->json([
+                'summary' => [
+                    'from' => $from->toDateTimeString(),
+                    'to' => $to->toDateTimeString(),
+                    'shop_id' => $shopId ? (int) $shopId : null,
+                    'requests' => 0,
+                    'errors' => 0,
+                    'avg_response_ms' => 0,
+                    'p95_response_ms' => 0,
+                    'products_p95_ms' => 0,
+                    'crash_free_rate' => 100.0,
+                ],
+                'series' => [],
+                'top_endpoints' => [],
+                'top_exceptions' => [],
+                'alerts' => [],
+            ]);
+        }
 
         $base = RequestMetric::query()->whereBetween('created_at', [$from, $to]);
         if ($shopId) {
