@@ -11,13 +11,13 @@ return new class extends Migration
     {
         Schema::table('shops', function (Blueprint $table) {
             if (!Schema::hasColumn('shops', 'web_status')) {
-                $table->enum('web_status', ['pending', 'active', 'disabled'])->default('disabled')->after('enable_web');
+                $table->enum('web_status', ['pending', 'processing', 'active', 'disabled'])->default('disabled')->after('enable_web');
             }
             if (!Schema::hasColumn('shops', 'android_status')) {
-                $table->enum('android_status', ['pending', 'active', 'disabled'])->default('disabled')->after('enable_android');
+                $table->enum('android_status', ['pending', 'processing', 'active', 'disabled'])->default('disabled')->after('enable_android');
             }
             if (!Schema::hasColumn('shops', 'ios_status')) {
-                $table->enum('ios_status', ['pending', 'active', 'disabled'])->default('disabled')->after('enable_ios');
+                $table->enum('ios_status', ['pending', 'processing', 'active', 'disabled'])->default('disabled')->after('enable_ios');
             }
             if (!Schema::hasColumn('shops', 'web_provisioned_at')) {
                 $table->dateTime('web_provisioned_at')->nullable()->after('web_status');
