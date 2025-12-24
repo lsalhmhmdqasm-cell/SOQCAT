@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\SystemUpdate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class UpdateController extends Controller
 {
@@ -92,5 +93,25 @@ class UpdateController extends Controller
             'pending_count' => $totalClients - $appliedCount,
             'percentage' => $totalClients > 0 ? round(($appliedCount / $totalClients) * 100, 2) : 0,
         ]);
+    }
+
+    public function migrate(Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+            return response()->json([
+                'message' => 'Migrations executed',
+                'output' => $output,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Migration failed',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
