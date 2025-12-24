@@ -108,6 +108,37 @@ const AppContent = () => {
     setToast({ msg, type });
   };
 
+  useEffect(() => {
+    const onServiceDisabled = () => {
+      setToast({ msg: 'هذه الخدمة غير مفعّلة في باقتك الحالية', type: 'warning' });
+    };
+    const onForbidden = (e: Event) => {
+      const ce = e as CustomEvent<any>;
+      const msg = typeof ce?.detail?.message === 'string' ? ce.detail.message : '';
+      const hasArabic = /[\u0600-\u06FF]/.test(msg);
+      setToast({ msg: hasArabic ? msg : 'لا تملك صلاحية لتنفيذ هذا الإجراء', type: 'warning' });
+    };
+    const onUnauthorized = (e: Event) => {
+      const ce = e as CustomEvent<any>;
+      const msg = typeof ce?.detail?.message === 'string' ? ce.detail.message : '';
+      const hasArabic = /[\u0600-\u06FF]/.test(msg);
+      setToast({ msg: hasArabic ? msg : 'يرجى تسجيل الدخول مرة أخرى', type: 'info' });
+      if (location.pathname !== '/login') {
+        navigate('/login', { state: { from: location.pathname } });
+      }
+    };
+
+    window.addEventListener('service-disabled', onServiceDisabled as any);
+    window.addEventListener('api-forbidden', onForbidden as any);
+    window.addEventListener('api-unauthorized', onUnauthorized as any);
+
+    return () => {
+      window.removeEventListener('service-disabled', onServiceDisabled as any);
+      window.removeEventListener('api-forbidden', onForbidden as any);
+      window.removeEventListener('api-unauthorized', onUnauthorized as any);
+    };
+  }, [navigate, location.pathname]);
+
   // Sync active admin tab with URL
   useEffect(() => {
     if (user?.isAdmin) {

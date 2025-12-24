@@ -54,6 +54,12 @@ class EnsureShopServiceEnabled
                     $enabled = (bool) ($shop->enable_ios ?? true);
                     $active = ($shop->ios_status ?? 'active') === 'active';
                 }
+
+                // Check Global Shop Status (from Client Subscription)
+                if ($shop->status !== 'active') {
+                    return response()->json(['message' => 'Your shop is currently ' . $shop->status], 403);
+                }
+
                 if (! $enabled || ! $active) {
                     return response()->json(['message' => 'This service is not enabled for your shop'], 403);
                 }

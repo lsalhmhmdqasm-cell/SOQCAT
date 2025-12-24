@@ -29,84 +29,50 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
         deliveryFee: 1000,
     });
 
-    // Load shop configuration from shops-config.json, then override from backend if available
+    // SaaS Loading: Fetch config from backend based on current domain
     useEffect(() => {
-        fetch('/shops-config.json')
-            .then(res => res.json())
-            .then(rawConfig => {
-                const envShopId = import.meta.env.VITE_SHOP_ID;
-                const config = (() => {
-                    if (rawConfig && typeof rawConfig === 'object' && 'shopId' in rawConfig) {
-                        return rawConfig;
-                    }
-                    if (envShopId && rawConfig && typeof rawConfig === 'object' && envShopId in rawConfig) {
-                        return rawConfig[envShopId];
-                    }
-                    if (rawConfig && typeof rawConfig === 'object' && 'default' in rawConfig) {
-                        return rawConfig.default;
-                    }
-                    if (rawConfig && typeof rawConfig === 'object') {
-                        const values = Object.values(rawConfig);
-                        const firstShopLike = values.find(v => v && typeof v === 'object' && 'shopId' in (v as any));
-                        if (firstShopLike) return firstShopLike;
-                    }
-                    return rawConfig;
-                })();
+        const loadSaaSConfig = async () => {
+            try {
+                // If we are on localhost and VITE_SHOP_ID is set, we might send it as hint or rely on IdentifyTenant fallback
+                // But generally, we just call the endpoint.
+                
+                // Skip if we are explicitly on the main platform domain (e.g. www.qatshop.com)
+                // For now, let's assume the backend handles the "Not Found" case for the landing page.
 
+                const res = await api.get('/shop/config');
+                const config = res.data;
+                
+                // Update Settings
                 setShopSettings({
                     shopName: config?.shopName || 'منصة قات شوب',
                     logo: config?.logo || 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
-                    deliveryFee: config?.deliveryFee || 1000,
+                    deliveryFee: typeof config?.deliveryFee === 'number' ? config.deliveryFee : 1000,
                 });
 
-                // Save full config to localStorage for features access
+                // Persist minimal config for API calls if needed (though backend handles it)
                 localStorage.setItem('shopConfig', JSON.stringify(config));
 
-                // Apply theme colors
+                // Apply Theme
                 if (config.primaryColor) {
                     document.documentElement.style.setProperty('--primary-color', config.primaryColor);
                 }
                 if (config.secondaryColor) {
                     document.documentElement.style.setProperty('--secondary-color', config.secondaryColor);
                 }
-
-                document.title = config?.shopName || 'منصة قات شوب';
-            })
-            .catch(err => console.error('Failed to load shop config:', err));
-    }, []);
-
-    // Try to load dynamic settings from backend
-    useEffect(() => {
-        const envShopId = import.meta.env.VITE_SHOP_ID;
-        const tryLoad = async () => {
-            try {
-                if (envShopId) {
-                    const res = await api.get(`/shops/${envShopId}/settings`);
-                    const cfg = res.data;
-                    localStorage.setItem('shopConfig', JSON.stringify({ ...(JSON.parse(localStorage.getItem('shopConfig') || '{}')), ...cfg }));
-                    setShopSettings({
-                        shopName: cfg.shopName || shopSettings.shopName,
-                        logo: cfg.logo || shopSettings.logo,
-                        deliveryFee: typeof cfg.deliveryFee === 'number' ? cfg.deliveryFee : shopSettings.deliveryFee,
-                    });
-                    if (cfg.primaryColor) {
-                        document.documentElement.style.setProperty('--primary-color', cfg.primaryColor);
-                    }
-                    if (cfg.secondaryColor) {
-                        document.documentElement.style.setProperty('--secondary-color', cfg.secondaryColor);
-                    }
-                    if (cfg.shopName) {
-                        document.title = cfg.shopName;
-                    }
+                if (config.shopName) {
+                    document.title = config.shopName;
                 }
-            } catch (e) {
-                // ignore if backend not available
+
+            } catch (err) {
+                console.log('Running in Platform Mode or Shop Not Found', err);
+                // We might be on the landing page, so we keep default settings
             }
         };
-        tryLoad();
+
+        loadSaaSConfig();
     }, []);
 
-    // Init
+    // Init User & Cart
     useEffect(() => {
         const initApp = async () => {
             try {
@@ -125,7 +91,7 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
                 setUser(null);
             }
 
-            // 2. Load Cart
+            // Load Cart
             const savedCart = localStorage.getItem('cart');
             if (savedCart) {
                 setCart(JSON.parse(savedCart));
@@ -192,38 +158,8 @@ export const ShopProvider = ({ children }: { children: ReactNode }) => {
     const clearCart = () => setCart([]);
 
     const updateShopSettings = (patch: Partial<AppSettings> & { primaryColor?: string; secondaryColor?: string; features?: Record<string, any> }) => {
-        try {
-            const currentStr = localStorage.getItem('shopConfig');
-            const current = currentStr ? JSON.parse(currentStr) : {};
-            const next = {
-                ...current,
-                shopName: patch.shopName ?? current.shopName,
-                logo: patch.logo ?? current.logo,
-                deliveryFee: patch.deliveryFee ?? current.deliveryFee,
-                primaryColor: patch.primaryColor ?? current.primaryColor,
-                secondaryColor: patch.secondaryColor ?? current.secondaryColor,
-                features: { ...(current.features || {}), ...(patch.features || {}) },
-            };
-            localStorage.setItem('shopConfig', JSON.stringify(next));
-
-            setShopSettings({
-                shopName: next.shopName || shopSettings.shopName,
-                logo: next.logo || shopSettings.logo,
-                deliveryFee: typeof next.deliveryFee === 'number' ? next.deliveryFee : shopSettings.deliveryFee,
-            });
-
-            if (next.primaryColor) {
-                document.documentElement.style.setProperty('--primary-color', next.primaryColor);
-            }
-            if (next.secondaryColor) {
-                document.documentElement.style.setProperty('--secondary-color', next.secondaryColor);
-            }
-            if (next.shopName) {
-                document.title = next.shopName;
-            }
-        } catch (e) {
-            console.error('Failed to update shop settings', e);
-        }
+        // Optimistic UI update only - Real update happens via Admin API
+        setShopSettings(prev => ({ ...prev, ...patch }));
     };
 
     return (

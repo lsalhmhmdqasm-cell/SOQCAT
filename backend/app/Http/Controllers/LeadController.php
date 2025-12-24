@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Lead;
+use App\Models\User;
+use Illuminate\Support\Facades\Http;
 
 class LeadController extends Controller
 {
@@ -30,11 +32,37 @@ class LeadController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->filled('honeypot')) {
+            return response()->json(['message' => 'Spam detected'], 400);
+        }
+
         $validated = $request->validate([
             'shop_name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^(?:\\+?967)?(7\\d{8}|05\\d{7})$/',
+            ],
             'plan_type' => 'required|string|in:basic,premium,enterprise',
+            'honeypot' => 'nullable|string',
+            'recaptcha_token' => 'nullable|string',
         ]);
+
+        $recaptchaSecret = config('services.recaptcha.secret');
+        if ($recaptchaSecret && ! empty($validated['recaptcha_token'])) {
+            try {
+                $resp = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => $recaptchaSecret,
+                    'response' => $validated['recaptcha_token'],
+                    'remoteip' => $request->ip(),
+                ])->json();
+                if (! ($resp['success'] ?? false)) {
+                    return response()->json(['message' => 'recaptcha_failed'], 422);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
 
         $lead = Lead::create([
             'shop_name' => $validated['shop_name'],
@@ -42,6 +70,20 @@ class LeadController extends Controller
             'plan_type' => $validated['plan_type'],
             'status' => 'new',
         ]);
+
+        try {
+            $superAdmins = User::where('role', 'super_admin')->get(['id', 'name']);
+            foreach ($superAdmins as $admin) {
+                \App\Http\Controllers\NotificationController::create(
+                    $admin->id,
+                    'طلب تواصل جديد',
+                    "متجر: {$lead->shop_name} | هاتف: {$lead->phone} | باقة: {$lead->plan_type}",
+                    'lead',
+                    (string) $lead->id
+                );
+            }
+        } catch (\Throwable $e) {
+        }
 
         return response()->json($lead, 201);
     }

@@ -23,8 +23,8 @@ class Client extends Model
     ];
 
     protected $casts = [
-        'subscription_start' => 'date',
-        'subscription_end' => 'date',
+        'subscription_start' => 'datetime',
+        'subscription_end' => 'datetime',
     ];
 
     public function subscription()
@@ -40,6 +40,11 @@ class Client extends Model
     public function shop()
     {
         return $this->belongsTo(Shop::class);
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(SubscriptionLog::class)->orderBy('created_at', 'desc');
     }
 
     public function isActive()

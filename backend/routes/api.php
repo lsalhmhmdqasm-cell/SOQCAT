@@ -3,16 +3,16 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentMethodController;
+use App\Http\Controllers\PlatformLandingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReferralController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SuperAdmin\ClientController as SAClientController;
-use App\Http\Controllers\LeadController;
-use App\Http\Controllers\PlatformLandingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,21 +37,23 @@ Route::get('/platform/partners', [PlatformLandingController::class, 'partners'])
 Route::get('/platform/stats', [PlatformLandingController::class, 'stats']);
 Route::get('/platform/testimonials', [PlatformLandingController::class, 'testimonials']);
 
-Route::get('/products', [ProductController::class, 'index']);
-Route::get('/products/{id}', [ProductController::class, 'show']);
-Route::get('/products/{id}/recommendations', [ProductController::class, 'recommendations']);
+Route::get('/products', [ProductController::class, 'index'])->middleware('service.enabled');
+Route::get('/products/{id}', [ProductController::class, 'show'])->middleware('service.enabled');
+Route::get('/products/{id}/recommendations', [ProductController::class, 'recommendations'])->middleware('service.enabled');
 
-    Route::get('/shops', [ShopController::class, 'index']);
-    Route::get('/shops/{id}', [ShopController::class, 'show']);
-    Route::get('/shops/{id}/settings', [ShopController::class, 'settingsPublic']);
+Route::get('/shops/{shop}', [ShopController::class, 'show'])->middleware('service.enabled');
+Route::get('/shops/{shop}/settings', [ShopController::class, 'settingsPublic'])->middleware('service.enabled');
 
-Route::get('/shops/{shop}/payment-methods', [PaymentMethodController::class, 'index']);
+Route::get('/shops/{shop}/payment-methods', [PaymentMethodController::class, 'index'])->middleware('service.enabled');
 
 // Private Routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/shop/config', [ShopController::class, 'config']);
+Route::get('/shops', [ShopController::class, 'index']);
 
     // Super Admin: Leads management
     Route::get('/super-admin/leads', [LeadController::class, 'index']);
@@ -63,113 +65,97 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/super_admin/pricing-plans/{id}', [SAClientController::class, 'deletePlan']);
     Route::post('/super_admin/pricing-plans/{id}/toggle', [SAClientController::class, 'togglePlan']);
 
-    // Image Upload
-    Route::post('/upload', [ImageController::class, 'store']);
+    Route::middleware('service.enabled')->group(function () {
+        Route::post('/upload', [ImageController::class, 'store']);
 
-    // Loyalty & Marketing
-    Route::get('/loyalty/points', [LoyaltyController::class, 'index']);
-    Route::post('/coupons/verify', [CouponController::class, 'verify']);
+        Route::get('/loyalty/points', [LoyaltyController::class, 'index']);
+        Route::post('/coupons/verify', [CouponController::class, 'verify']);
 
-    // Referrals
-    Route::get('/referrals', [ReferralController::class, 'index']);
-    Route::post('/referrals', [ReferralController::class, 'store']);
+        Route::get('/referrals', [ReferralController::class, 'index']);
+        Route::post('/referrals', [ReferralController::class, 'store']);
 
-    // User Orders
-    Route::post('/orders', [OrderController::class, 'store'])->middleware('service.enabled');
-    Route::get('/orders', [OrderController::class, 'index']);
-    Route::get('/orders/{id}', [OrderController::class, 'show']);
+        Route::post('/orders', [OrderController::class, 'store']);
+        Route::get('/orders', [OrderController::class, 'index']);
+        Route::get('/orders/{id}', [OrderController::class, 'show']);
 
-    // Order Tracking
-    Route::get('/orders/track/{trackingNumber}', [OrderController::class, 'track']);
+        Route::get('/orders/track/{trackingNumber}', [OrderController::class, 'track']);
 
-    // System Updates
-    Route::get('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'index']); // Public/Auth
-    Route::post('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'store']); // Admin
-    Route::delete('/system-updates/{id}', [\App\Http\Controllers\SystemUpdateController::class, 'destroy']); // Admin
+        Route::get('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'index']);
+        Route::post('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'store']);
+        Route::delete('/system-updates/{id}', [\App\Http\Controllers\SystemUpdateController::class, 'destroy']);
 
-    // Categories
-    Route::get('/categories', [\App\Http\Controllers\CategoryController::class, 'index']);
+        Route::get('/categories', [\App\Http\Controllers\CategoryController::class, 'index']);
 
-    // Wishlist
-    Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
-    Route::post('/wishlist/{productId}', [\App\Http\Controllers\WishlistController::class, 'toggle']);
-    Route::get('/wishlist/check/{productId}', [\App\Http\Controllers\WishlistController::class, 'check']);
+        Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
+        Route::post('/wishlist/{productId}', [\App\Http\Controllers\WishlistController::class, 'toggle']);
+        Route::get('/wishlist/check/{productId}', [\App\Http\Controllers\WishlistController::class, 'check']);
 
-    // Notifications
-    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
-    Route::put('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
-    Route::put('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+        Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index']);
+        Route::put('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
+        Route::put('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
 
-    // Addresses
-    Route::get('/addresses', [\App\Http\Controllers\AddressController::class, 'index']);
-    Route::post('/addresses', [\App\Http\Controllers\AddressController::class, 'store']);
-    Route::put('/addresses/{id}', [\App\Http\Controllers\AddressController::class, 'update']);
-    Route::delete('/addresses/{id}', [\App\Http\Controllers\AddressController::class, 'destroy']);
+        Route::get('/addresses', [\App\Http\Controllers\AddressController::class, 'index']);
+        Route::post('/addresses', [\App\Http\Controllers\AddressController::class, 'store']);
+        Route::put('/addresses/{id}', [\App\Http\Controllers\AddressController::class, 'update']);
+        Route::delete('/addresses/{id}', [\App\Http\Controllers\AddressController::class, 'destroy']);
 
-    // Image uploads (admin-only uploads grouped below)
-    Route::delete('/images', [\App\Http\Controllers\ImageController::class, 'deleteImage']);
+        Route::delete('/images', [\App\Http\Controllers\ImageController::class, 'deleteImage']);
 
-    // Shop Admin protected routes
-    Route::middleware(['shop.admin', 'service.enabled'])->group(function () {
-        // Payment Methods
-        Route::get('/payment-methods', [PaymentMethodController::class, 'shopMethods']); // Shop Admin
-        Route::post('/payment-methods', [PaymentMethodController::class, 'store']);
-        Route::put('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update']);
-        Route::delete('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
-        Route::post('/payment-methods/{paymentMethod}/toggle', [PaymentMethodController::class, 'toggleActive']);
+        Route::middleware(['shop.admin'])->group(function () {
+            Route::get('/payment-methods', [PaymentMethodController::class, 'shopMethods']);
+            Route::post('/payment-methods', [PaymentMethodController::class, 'store']);
+            Route::put('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'update']);
+            Route::delete('/payment-methods/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
+            Route::post('/payment-methods/{paymentMethod}/toggle', [PaymentMethodController::class, 'toggleActive']);
 
-        // Stock & Expiry Management
-        Route::put('/products/{product}/stock', [StockController::class, 'updateStock']);
-        Route::get('/products/expiring', [StockController::class, 'getExpiringSoon']);
-        Route::get('/products/expired', [StockController::class, 'getExpired']);
-        Route::post('/products/expired/mark', [StockController::class, 'markExpired']);
+            Route::put('/products/{product}/stock', [StockController::class, 'updateStock']);
+            Route::get('/products/expiring', [StockController::class, 'getExpiringSoon']);
+            Route::get('/products/expired', [StockController::class, 'getExpired']);
+            Route::post('/products/expired/mark', [StockController::class, 'markExpired']);
 
-        // Coupons (Shop Admin)
-        Route::get('/coupons', [CouponController::class, 'index']);
-        Route::post('/coupons', [CouponController::class, 'store']);
-        Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
+            Route::get('/coupons', [CouponController::class, 'index']);
+            Route::post('/coupons', [CouponController::class, 'store']);
+            Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
 
-        // Orders management
-        Route::put('/orders/{id}/status', [OrderController::class, 'updateOrderStatus']);
-        Route::put('/orders/{id}/assign-delivery', [OrderController::class, 'assignDelivery']);
-        Route::get('/shop/orders', [OrderController::class, 'shopOrders']);
+            Route::put('/orders/{id}/status', [OrderController::class, 'updateOrderStatus']);
+            Route::put('/orders/{id}/assign-delivery', [OrderController::class, 'assignDelivery']);
+            Route::get('/shop/orders', [OrderController::class, 'shopOrders']);
 
-        // Products management
-        Route::post('/products', [ProductController::class, 'store']);
-        Route::put('/products/{id}', [ProductController::class, 'update']);
-        Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+            Route::post('/products', [ProductController::class, 'store']);
+            Route::put('/products/{id}', [ProductController::class, 'update']);
+            Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
-        // Categories management
-        Route::post('/categories', [\App\Http\Controllers\CategoryController::class, 'store']);
-        Route::delete('/categories/{id}', [\App\Http\Controllers\CategoryController::class, 'destroy']);
+            Route::post('/categories', [\App\Http\Controllers\CategoryController::class, 'store']);
+            Route::delete('/categories/{id}', [\App\Http\Controllers\CategoryController::class, 'destroy']);
 
-        // Delivery Persons
-        Route::get('/delivery-persons', [\App\Http\Controllers\DeliveryPersonController::class, 'index']);
-        Route::post('/delivery-persons', [\App\Http\Controllers\DeliveryPersonController::class, 'store']);
-        Route::put('/delivery-persons/{id}/status', [\App\Http\Controllers\DeliveryPersonController::class, 'updateStatus']);
-        Route::delete('/delivery-persons/{id}', [\App\Http\Controllers\DeliveryPersonController::class, 'destroy']);
+            Route::get('/delivery-persons', [\App\Http\Controllers\DeliveryPersonController::class, 'index']);
+            Route::post('/delivery-persons', [\App\Http\Controllers\DeliveryPersonController::class, 'store']);
+            Route::put('/delivery-persons/{id}/status', [\App\Http\Controllers\DeliveryPersonController::class, 'updateStatus']);
+            Route::delete('/delivery-persons/{id}', [\App\Http\Controllers\DeliveryPersonController::class, 'destroy']);
 
-        // Dashboard
-        Route::get('/dashboard/stats', [\App\Http\Controllers\DashboardController::class, 'stats']);
+            Route::get('/dashboard/stats', [\App\Http\Controllers\DashboardController::class, 'stats']);
 
-        // Users (for admin)
-        Route::get('/users', function (Request $request) {
-            return \App\Models\User::where('role', 'customer')->get();
+            Route::get('/users', function (Request $request) {
+                $shopId = $request->user()->shop_id;
+                if (! is_numeric($shopId)) {
+                    return response()->json(['message' => 'shop_id is required'], 422);
+                }
+                return \App\Models\User::where('role', 'customer')
+                    ->where('shop_id', (int) $shopId)
+                    ->get();
+            });
+
+            Route::post('/upload/product-image', [\App\Http\Controllers\ImageController::class, 'uploadProductImage']);
+            Route::post('/upload/category-image', [\App\Http\Controllers\ImageController::class, 'uploadCategoryImage']);
+            Route::post('/upload/shop-logo', [\App\Http\Controllers\ImageController::class, 'uploadShopLogo']);
+
+            Route::get('/shop/settings', [ShopController::class, 'settings']);
+            Route::put('/shop/settings', [ShopController::class, 'updateSettings']);
         });
 
-        // Image uploads (admin-only)
-        Route::post('/upload/product-image', [\App\Http\Controllers\ImageController::class, 'uploadProductImage']);
-        Route::post('/upload/category-image', [\App\Http\Controllers\ImageController::class, 'uploadCategoryImage']);
-        Route::post('/upload/shop-logo', [\App\Http\Controllers\ImageController::class, 'uploadShopLogo']);
-
-        // Shop Settings
-        Route::get('/shop/settings', [ShopController::class, 'settings']);
-        Route::put('/shop/settings', [ShopController::class, 'updateSettings']);
+        Route::post('/reviews', [\App\Http\Controllers\ReviewController::class, 'store']);
+        Route::delete('/reviews/{id}', [\App\Http\Controllers\ReviewController::class, 'destroy']);
     });
-
-    // Reviews (authenticated)
-    Route::post('/reviews', [\App\Http\Controllers\ReviewController::class, 'store']);
-    Route::delete('/reviews/{id}', [\App\Http\Controllers\ReviewController::class, 'destroy']);
 
     // Super Admin: Pricing plans and client features
     Route::get('/super_admin/pricing-plans', [SAClientController::class, 'plans']);
@@ -184,6 +170,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/super-admin/clients/{id}/suspend', [SAClientController::class, 'suspend']);
     Route::put('/super-admin/clients/{id}/activate', [SAClientController::class, 'activate']);
     Route::put('/super-admin/clients/{id}/extend', [SAClientController::class, 'extend']);
+    Route::get('/super-admin/clients/{id}/logs', [SAClientController::class, 'logs']);
     Route::delete('/super-admin/clients/{id}', [SAClientController::class, 'destroy']);
 
     // Super Admin: Onboard shop

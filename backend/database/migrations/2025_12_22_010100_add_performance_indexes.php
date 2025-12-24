@@ -8,6 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('categories')) {
+            if (! Schema::hasColumn('categories', 'shop_id')) {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->foreignId('shop_id')->constrained('shops')->cascadeOnDelete();
+                });
+            }
+
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->unique(['shop_id', 'name']);
+                });
+            } catch (\Throwable $e) {
+            }
+
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->index(['shop_id', 'is_active', 'order'], 'categories_shop_active_order_idx');
+                });
+            } catch (\Throwable $e) {
+            }
+        }
+
         Schema::table('products', function (Blueprint $table) {
             $table->index(['shop_id', 'is_active'], 'products_shop_active_idx');
             $table->index(['category', 'is_active'], 'products_category_active_idx');
@@ -21,6 +43,27 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (Schema::hasTable('categories') && Schema::hasColumn('categories', 'shop_id')) {
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->dropIndex('categories_shop_active_order_idx');
+                });
+            } catch (\Throwable $e) {
+            }
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->dropUnique(['shop_id', 'name']);
+                });
+            } catch (\Throwable $e) {
+            }
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->dropConstrainedForeignId('shop_id');
+                });
+            } catch (\Throwable $e) {
+            }
+        }
+
         Schema::table('products', function (Blueprint $table) {
             $table->dropIndex('products_shop_active_idx');
             $table->dropIndex('products_category_active_idx');

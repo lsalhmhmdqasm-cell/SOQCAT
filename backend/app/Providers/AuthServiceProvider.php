@@ -6,9 +6,11 @@ namespace App\Providers;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Shop;
 use App\Models\PaymentMethod;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
+use App\Policies\ShopPolicy;
 use App\Policies\PaymentMethodPolicy;
 
 class AuthServiceProvider extends ServiceProvider
@@ -21,6 +23,7 @@ class AuthServiceProvider extends ServiceProvider
     protected $policies = [
         Order::class => OrderPolicy::class,
         Product::class => ProductPolicy::class,
+        Shop::class => ShopPolicy::class,
         PaymentMethod::class => PaymentMethodPolicy::class,
     ];
 

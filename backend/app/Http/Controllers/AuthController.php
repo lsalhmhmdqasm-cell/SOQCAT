@@ -2,16 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        $shopId = $request->header('X-Shop-Id');
+        if (! is_numeric($shopId)) {
+            $shopId = $request->input('shop_id');
+        }
+        if (! is_numeric($shopId)) {
+            throw ValidationException::withMessages(['shop_id' => ['shop_id is required']]);
+        }
+        $shopId = (int) $shopId;
+        $shop = Shop::findOrFail($shopId);
+        if ($shop->status !== 'active') {
+            return response()->json(['message' => 'Your shop is currently ' . $shop->status], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -25,6 +40,7 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
             'role' => 'customer',
+            'shop_id' => $shopId,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -38,14 +54,29 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // Security Fix: Use IdentifyTenant middleware resolved shop
+        $shop = $request->shop;
+        $shopId = $shop ? $shop->id : (is_numeric($request->input('shop_id')) ? (int)$request->input('shop_id') : null);
+
         $validated = $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
+        
         $user = User::where('email', $validated['email'])->first();
+        
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid login details'], 401);
         }
+        
+        // Strict Isolation: User must belong to this shop (unless Super Admin)
+        if ($shopId && ! $user->isSuperAdmin()) {
+             if ((int)$user->shop_id !== $shopId) {
+                  // User exists but belongs to another shop -> Unauthorized for this domain
+                  return response()->json(['message' => 'Unauthorized for this shop'], 403);
+             }
+        }
+        
         $token = $user->createToken('auth_token')->plainTextToken;
         return response()->json(['data' => $user, 'access_token' => $token, 'token_type' => 'Bearer']);
     }

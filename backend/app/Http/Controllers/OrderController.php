@@ -2,19 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreOrderRequest;
 use App\Events\OrderStatusUpdated;
-use App\Http\Controllers\NotificationController;
+use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
     public function store(StoreOrderRequest $request)
     {
+        $this->authorize('create', Order::class);
+
         $validated = $request->validated();
 
         return DB::transaction(function () use ($validated, $request) {
@@ -40,7 +42,6 @@ class OrderController extends Controller
                 'payment_receipt' => $receiptPath,
                 'payment_reference' => $validated['payment_reference'] ?? null,
                 'payment_status' => $validated['payment_method'] === 'cash_on_delivery' ? 'pending' : 'pending',
-                // 'payment_method_id' => $validated['payment_method_id'] ?? null, // Removed as it was not in local migration schema but good to have conceptually
             ]);
 
             foreach ($validated['items'] as $item) {
@@ -83,17 +84,30 @@ class OrderController extends Controller
 
     public function show(Request $request, $id)
     {
-        return $request->user()->orders()->with('items.product')->findOrFail($id);
+        $order = Order::findOrFail($id);
+        $this->authorize('view', $order);
+
+        return $order->load('items.product');
     }
 
     /**
      * Track order by tracking number
      */
-    public function track($trackingNumber)
+    public function track(Request $request, $trackingNumber)
     {
-        $order = Order::where('tracking_number', $trackingNumber)
-            ->with(['statusHistory.updatedBy', 'deliveryPerson', 'shop'])
-            ->firstOrFail();
+        $shop = $request->shop;
+        
+        $query = Order::where('tracking_number', $trackingNumber)
+            ->with(['statusHistory.updatedBy', 'deliveryPerson', 'shop']);
+            
+        // If accessed via shop domain, restrict to that shop
+        if ($shop) {
+            $query->where('shop_id', $shop->id);
+        }
+
+        $order = $query->firstOrFail();
+
+        $this->authorize('view', $order);
 
         return response()->json($order);
     }
@@ -142,7 +156,11 @@ class OrderController extends Controller
     public function assignDelivery(Request $request, $id)
     {
         $request->validate([
-            'delivery_person_id' => 'required|exists:delivery_persons,id',
+            'delivery_person_id' => [
+                'required',
+                'integer',
+                Rule::exists('delivery_persons', 'id')->where(fn ($q) => $q->where('shop_id', $request->user()->shop_id)),
+            ],
             'estimated_delivery_time' => 'nullable|date',
         ]);
 
@@ -179,9 +197,7 @@ class OrderController extends Controller
     // Shop Admin: View Orders for their shop
     public function shopOrders(Request $request)
     {
-        if ($request->user()->role !== 'shop_admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('viewAny', Order::class);
 
         return Order::where('shop_id', $request->user()->shop_id)
             ->with(['items.product', 'user', 'deliveryPerson'])

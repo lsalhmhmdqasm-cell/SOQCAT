@@ -578,12 +578,33 @@ export const PlatformLanding = () => {
                             e.preventDefault();
                             if (!leadShopName || !leadPhone) return;
                             if (leadSubmitting) return;
+                            const phone = leadPhone.trim();
+                            const phoneValid = /^(?:\+?967)?(7\d{8}|05\d{7})$/.test(phone);
+                            if (!phoneValid) {
+                                alert('رقم الهاتف غير صالح. الرجاء إدخال رقم يمني صحيح.');
+                                return;
+                            }
+                            const hp = (document.getElementById('honeypot') as HTMLInputElement | null)?.value || '';
+                            if (hp) {
+                                alert('تم الكشف عن نشاط غير معتاد في النموذج.');
+                                return;
+                            }
+                            let recaptchaToken: string | undefined = undefined;
+                            try {
+                                const siteKey = (import.meta as any)?.env?.VITE_RECAPTCHA_SITE_KEY;
+                                const grecaptcha = (window as any)?.grecaptcha;
+                                if (siteKey && grecaptcha && typeof grecaptcha.execute === 'function') {
+                                    recaptchaToken = await grecaptcha.execute(siteKey, { action: 'lead_submit' });
+                                }
+                            } catch {}
                             setLeadSubmitting(true);
                             try {
                                 await api.post('/leads', {
                                     shop_name: leadShopName,
-                                    phone: leadPhone,
+                                    phone,
                                     plan_type: leadPlan,
+                                    honeypot: hp,
+                                    recaptcha_token: recaptchaToken,
                                 });
                                 alert('تم استلام طلبك! سيتم التواصل معك قريباً.');
                                 setLeadShopName('');
@@ -596,6 +617,15 @@ export const PlatformLanding = () => {
                             }
                         }}
                     >
+                        <input
+                            type="text"
+                            id="honeypot"
+                            name="honeypot"
+                            className="hidden"
+                            tabIndex={-1}
+                            autoComplete="off"
+                            onChange={() => {}}
+                        />
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">{contactLabelShop}</label>
                             <input

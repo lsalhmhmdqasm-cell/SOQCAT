@@ -45,7 +45,7 @@ class ProductTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->getJson('/api/products');
+        $response = $this->getJson('/api/products?shop_id='.$this->shop->id);
 
         $response->assertStatus(200)
             ->assertJsonCount(5);

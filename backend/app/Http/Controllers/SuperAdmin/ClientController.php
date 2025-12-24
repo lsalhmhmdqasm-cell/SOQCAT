@@ -41,6 +41,18 @@ class ClientController extends Controller
         return response()->json($query->paginate(20));
     }
 
+    public function logs($id, Request $request)
+    {
+        if ($request->user()->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $client = Client::findOrFail($id);
+        $logs = $client->logs()->with('user')->paginate(20);
+
+        return response()->json($logs);
+    }
+
     public function store(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
@@ -177,6 +189,7 @@ class ClientController extends Controller
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         $client = Client::findOrFail($id);
         $client->delete();
 
@@ -188,14 +201,16 @@ class ClientController extends Controller
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         return response()->json(PricingPlan::where('is_active', true)->orderBy('sort_order')->get());
     }
- 
+
     public function storePlan(Request $request)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -213,14 +228,16 @@ class ClientController extends Controller
             'is_active' => $validated['is_active'] ?? true,
             'sort_order' => $validated['sort_order'] ?? 0,
         ]));
+
         return response()->json($plan, 201);
     }
- 
+
     public function updatePlan(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         $plan = PricingPlan::findOrFail($id);
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -236,27 +253,32 @@ class ClientController extends Controller
             'sort_order' => 'nullable|integer',
         ]);
         $plan->update($validated);
+
         return response()->json($plan);
     }
- 
+
     public function deletePlan(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         $plan = PricingPlan::findOrFail($id);
         $plan->delete();
+
         return response()->json(['message' => 'Deleted']);
     }
- 
+
     public function togglePlan(Request $request, $id)
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
         $plan = PricingPlan::findOrFail($id);
         $plan->is_active = ! $plan->is_active;
         $plan->save();
+
         return response()->json($plan);
     }
 
@@ -299,16 +321,16 @@ class ClientController extends Controller
                 $shop = \App\Models\Shop::find($shopId);
                 if ($shop) {
                     $updates = [];
-                    if (!is_null($plan->web_enabled)) {
+                    if (! is_null($plan->web_enabled)) {
                         $updates['enable_web'] = (bool) $plan->web_enabled;
                     }
-                    if (!is_null($plan->android_enabled)) {
+                    if (! is_null($plan->android_enabled)) {
                         $updates['enable_android'] = (bool) $plan->android_enabled;
                     }
-                    if (!is_null($plan->ios_enabled)) {
+                    if (! is_null($plan->ios_enabled)) {
                         $updates['enable_ios'] = (bool) $plan->ios_enabled;
                     }
-                    if (!empty($updates)) {
+                    if (! empty($updates)) {
                         $shop->fill($updates);
                         $shop->save();
                     }

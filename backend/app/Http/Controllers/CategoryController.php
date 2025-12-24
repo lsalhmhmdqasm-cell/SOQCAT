@@ -4,15 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
     /**
      * Get all active categories
      */
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::active()->ordered()->get();
+        $shopId = $request->input('shop_id');
+        if (! is_numeric($shopId)) {
+            $shopId = $request->header('X-Shop-Id');
+        }
+        if (! is_numeric($shopId)) {
+            $shopId = $request->user()?->shop_id;
+        }
+        if (! is_numeric($shopId)) {
+            return response()->json(['message' => 'shop_id is required'], 422);
+        }
+        $shopId = (int) $shopId;
+
+        $categories = Category::where('shop_id', $shopId)->active()->ordered()->get();
 
         return response()->json($categories);
     }
@@ -26,14 +39,26 @@ class CategoryController extends Controller
         if ($request->user()->role !== 'shop_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        if (! is_numeric($request->user()->shop_id)) {
+            return response()->json(['message' => 'shop_id is required'], 422);
+        }
+        $shopId = (int) $request->user()->shop_id;
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('categories', 'name')->where(fn ($q) => $q->where('shop_id', $shopId)),
+            ],
             'image' => 'nullable|string',
             'order' => 'nullable|integer',
         ]);
 
-        $category = Category::create($validated);
+        $category = Category::create([
+            ...$validated,
+            'shop_id' => $shopId,
+        ]);
 
         return response()->json($category, 201);
     }
@@ -47,8 +72,12 @@ class CategoryController extends Controller
         if ($request->user()->role !== 'shop_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        if (! is_numeric($request->user()->shop_id)) {
+            return response()->json(['message' => 'shop_id is required'], 422);
+        }
+        $shopId = (int) $request->user()->shop_id;
 
-        $category = Category::findOrFail($id);
+        $category = Category::where('shop_id', $shopId)->where('id', $id)->firstOrFail();
         $category->delete();
 
         return response()->json(['message' => 'Category deleted successfully']);

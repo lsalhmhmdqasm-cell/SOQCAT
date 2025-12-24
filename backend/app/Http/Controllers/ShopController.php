@@ -8,9 +8,42 @@ use Illuminate\Http\Request;
 
 class ShopController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Shop::all();
+        if ($request->user()?->role !== 'super_admin') {
+            return response()->json(['message' => 'Unauthorized'], 403);
+            public function config(Request $request)
+    {
+        $shop = $request->shop; // Injected by IdentifyTenant middleware
+        
+        if (!$shop) {
+            // Check if user is asking for default platform landing
+            // Or return a 404 Not Found Shop
+             return response()->json(['message' => 'Shop not found for this domain'], 404);
+        }
+
+        $client = Client::where('shop_id', $shop->id)->first();
+
+        return response()->json([
+            'shopId' => $shop->id, // Important for Frontend Context
+            'shopName' => $client?->shop_name ?? $shop->name,
+            'logo' => $client?->logo_url ?? $shop->logo ?? '',
+            'primaryColor' => $client?->primary_color ?? '#10b981',
+            'secondaryColor' => $client?->secondary_color ?? '#059669',
+            'deliveryFee' => (int) ($shop->delivery_fee ?? 1000),
+            'features' => [
+                 'web' => $shop->enable_web,
+                 'android' => $shop->enable_android,
+                 'ios' => $shop->enable_ios,
+            ]
+        ]);
+    }
+}
+
+        return Shop::query()
+            ->select(['id', 'name'])
+            ->orderByDesc('id')
+            ->get();
     }
 
     public function store(Request $request)
@@ -33,7 +66,7 @@ class ShopController extends Controller
 
     public function show($id)
     {
-        return Shop::with('products')->findOrFail($id);
+        return Shop::with(['products' => fn ($q) => $q->where('is_active', true)])->findOrFail($id);
     }
 
     public function settings(Request $request)

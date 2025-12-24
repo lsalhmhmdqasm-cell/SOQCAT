@@ -22,7 +22,7 @@ class User extends Authenticatable
         'email',
         'password',
         'phone',
-        'role', // super_admin, shop_admin, customer
+        'role', // super_admin, shop_admin, shop_staff, customer
         'shop_id',
     ];
 
@@ -66,6 +66,11 @@ class User extends Authenticatable
         return $this->role === 'shop_admin';
     }
 
+    public function isShopStaff()
+    {
+        return $this->role === 'shop_staff';
+    }
+
     public function loyaltyPoints()
     {
         return $this->hasOne(LoyaltyPoint::class);
@@ -89,5 +94,36 @@ class User extends Authenticatable
     public function receivedReferral()
     {
         return $this->hasOne(Referral::class, 'referred_id');
+    }
+
+    /**
+     * Permissions Logic
+     */
+    public function hasPermissionTo($permission)
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($this->isShopAdmin()) {
+            // Shop Admin has all shop permissions
+            return in_array($permission, [
+                'manage_products',
+                'manage_orders',
+                'manage_settings',
+                'view_reports',
+            ]);
+        }
+
+        if ($this->isShopStaff()) {
+            // Shop Staff has limited permissions
+            return in_array($permission, [
+                'manage_products',
+                'manage_orders',
+                // No settings, No reports
+            ]);
+        }
+
+        return false;
     }
 }

@@ -18,6 +18,7 @@ class PricingPlan extends Model
         'ios_enabled',
         'max_products',
         'max_orders_per_month',
+        'max_api_requests_per_day',
         'max_storage_mb',
         'is_active',
         'sort_order',

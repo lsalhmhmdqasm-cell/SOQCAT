@@ -10,6 +10,7 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = [
+        'shop_id',
         'name',
         'image',
         'is_active',
@@ -26,7 +27,13 @@ class Category extends Model
      */
     public function products()
     {
-        return $this->hasMany(Product::class, 'category', 'name');
+        return $this->hasMany(Product::class, 'category', 'name')
+            ->where('shop_id', $this->shop_id);
+    }
+
+    public function shop()
+    {
+        return $this->belongsTo(Shop::class);
     }
 
     /**

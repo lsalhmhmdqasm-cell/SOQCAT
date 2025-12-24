@@ -89,7 +89,10 @@ class PricingPlanSeeder extends Seeder
         ];
 
         foreach ($plans as $plan) {
-            PricingPlan::create($plan);
+            PricingPlan::updateOrCreate(
+                ['name' => $plan['name']],
+                $plan
+            );
         }
     }
 }

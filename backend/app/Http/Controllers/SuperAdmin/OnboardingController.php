@@ -7,8 +7,10 @@ use App\Http\Requests\SuperAdminOnboardShopRequest;
 use App\Jobs\ProvisionAndroidApp;
 use App\Jobs\ProvisionIOSApp;
 use App\Jobs\ProvisionWebShop;
+use App\Models\Client;
 use App\Models\PricingPlan;
 use App\Models\Shop;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +28,7 @@ class OnboardingController extends Controller
         $web = (bool) ($plan->web_enabled ?? false);
         $android = (bool) ($plan->android_enabled ?? false);
         $ios = (bool) ($plan->ios_enabled ?? false);
-        if (!($web || $android || $ios)) {
+        if (! ($web || $android || $ios)) {
             return response()->json(['message' => 'At least one service must be enabled'], 422);
         }
 
@@ -36,6 +38,10 @@ class OnboardingController extends Controller
                 'description' => $validated['description'] ?? null,
                 'logo' => $validated['logo'] ?? null,
                 'status' => 'active',
+                'delivery_fee' => 1000,
+                'enable_web' => $web,
+                'enable_android' => $android,
+                'enable_ios' => $ios,
             ]);
 
             $admin = User::create([
@@ -47,20 +53,34 @@ class OnboardingController extends Controller
                 'shop_id' => $shop->id,
             ]);
 
-            $shop->enable_web = $web;
-            $shop->enable_android = $android;
-            $shop->enable_ios = $ios;
-            $shop->save();
+            // Create Client Record (Business Entity)
+            $client = Client::create([
+                'shop_name' => $shop->name,
+                'owner_name' => $admin->name,
+                'email' => $admin->email,
+                'phone' => $admin->phone ?? '000000000',
+                'domain' => 'shop-' . $shop->id . '.qatshop.com', // Default domain
+                'subscription_type' => 'monthly', // Default, can be updated later or passed in request
+                'status' => 'active',
+                'subscription_start' => now(),
+                'subscription_end' => now()->addMonth(),
+                'shop_id' => $shop->id,
+            ]);
 
-            if ($shop->enable_web && $shop->web_status === 'pending') {
-                ProvisionWebShop::dispatch($shop->id)->afterCommit();
-            }
-            if ($shop->enable_android && $shop->android_status === 'pending') {
-                ProvisionAndroidApp::dispatch($shop->id)->afterCommit();
-            }
-            if ($shop->enable_ios && $shop->ios_status === 'pending') {
-                ProvisionIOSApp::dispatch($shop->id)->afterCommit();
-            }
+            // Create Subscription Record
+            Subscription::create([
+                'client_id' => $client->id,
+                'pricing_plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+                'price' => $plan->monthly_price ?? 0,
+                'billing_cycle' => 'monthly',
+                'features' => $plan->features,
+                'status' => 'active',
+                'next_billing_date' => now()->addMonth(),
+            ]);
+
+            // Provisioning Jobs are handled by Shop model events (created/saving)
+            // But we can double check or just rely on the model events which we verified exist.
 
             return response()->json([
                 'shop' => $shop->fresh(),

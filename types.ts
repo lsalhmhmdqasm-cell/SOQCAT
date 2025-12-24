@@ -85,7 +85,7 @@ export interface AppNotification {
   body: string;
   date: string;
   isRead: boolean;
-  type: 'order' | 'promo' | 'system';
+  type: 'order' | 'promo' | 'system' | 'lead';
   relatedId?: string; // e.g., order ID
 }
 

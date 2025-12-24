@@ -20,8 +20,8 @@ return new class extends Migration
             $table->string('secondary_color', 7)->default('#059669');
             $table->enum('status', ['active', 'suspended', 'trial', 'expired'])->default('trial');
             $table->enum('subscription_type', ['monthly', 'yearly', 'lifetime'])->default('monthly');
-            $table->date('subscription_start')->nullable();
-            $table->date('subscription_end')->nullable();
+            $table->dateTime('subscription_start')->nullable();
+            $table->dateTime('subscription_end')->nullable();
             $table->timestamps();
 
             $table->index('status');

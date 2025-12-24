@@ -4,26 +4,38 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::where('is_active', true);
+        // 1. Try to get shop from Middleware (Secure Domain/Host Resolution)
+        $shop = $request->shop;
 
-        if ($request->has('shop_id')) {
-            $query->where('shop_id', $request->shop_id);
+        // 2. Fallback: Check explicit params (Only for testing/super-admin, can be removed for strict security)
+        if (! $shop) {
+             $shopId = $request->input('shop_id') ?? $request->header('X-Shop-Id');
+             if (is_numeric($shopId)) {
+                 $shop = \App\Models\Shop::find($shopId);
+             }
         }
+
+        if (! $shop) {
+            return response()->json(['message' => 'Shop context required'], 422);
+        }
+        
+        $shopId = $shop->id;
+
+        $query = Product::where('is_active', true)->where('shop_id', $shopId);
 
         if ($request->has('category')) {
             $query->where('category', $request->category);
         }
 
-        $shopKey = $request->has('shop_id') ? (string) $request->shop_id : 'all';
         $catKey = $request->has('category') ? (string) $request->category : 'none';
-        $key = 'products:list:shop:'.$shopKey.':cat:'.$catKey;
+        $key = 'products:list:shop:'.$shopId.':cat:'.$catKey;
 
         $data = Cache::remember($key, 60, function () use ($query) {
             return $query->get();
@@ -34,16 +46,19 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        return Product::with('shop')->findOrFail($id);
+        $shopId = request()->header('X-Shop-Id');
+        if (! is_numeric($shopId)) {
+            return response()->json(['message' => 'shop_id is required'], 422);
+        }
+
+        return Product::with('shop')->where('shop_id', (int) $shopId)->findOrFail($id);
     }
 
     public function store(Request $request)
     {
-        if ($request->user()->role !== 'shop_admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+        $this->authorize('create', Product::class);
 
-        // Ensure Shop Admin only adds to their own shop
+        // Ensure user belongs to a shop
         $shopId = $request->user()->shop_id;
         if (! $shopId) {
             return response()->json(['message' => 'No shop assigned'], 400);
@@ -76,11 +91,9 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        if ($request->user()->role !== 'shop_admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
+        $shopId = $request->user()->shop_id;
+        $product = Product::where('shop_id', $shopId)->findOrFail($id);
+        
         $this->authorize('update', $product);
 
         $validated = $request->validate([
@@ -96,35 +109,32 @@ class ProductController extends Controller
 
         Log::info('admin_product_updated', [
             'user_id' => $request->user()->id,
-            'shop_id' => $request->user()->shop_id,
+            'shop_id' => $shopId,
             'product_id' => $product->id,
             'changes' => array_keys($validated),
         ]);
 
-        Cache::forget('products:list:shop:all:cat:none');
-        Cache::forget('products:list:shop:'.$request->user()->shop_id.':cat:none');
+        Cache::forget('products:list:shop:'.$shopId.':cat:none');
 
         return response()->json($product);
     }
 
     public function destroy(Request $request, $id)
     {
-        if ($request->user()->role !== 'shop_admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $product = Product::where('shop_id', $request->user()->shop_id)->findOrFail($id);
+        $shopId = $request->user()->shop_id;
+        $product = Product::where('shop_id', $shopId)->findOrFail($id);
+        
         $this->authorize('delete', $product);
+        
         $product->delete();
 
         Log::info('admin_product_deleted', [
             'user_id' => $request->user()->id,
-            'shop_id' => $request->user()->shop_id,
+            'shop_id' => $shopId,
             'product_id' => $product->id,
         ]);
 
-        Cache::forget('products:list:shop:all:cat:none');
-        Cache::forget('products:list:shop:'.$request->user()->shop_id.':cat:none');
+        Cache::forget('products:list:shop:'.$shopId.':cat:none');
 
         return response()->json(['message' => 'Deleted']);
     }
@@ -134,10 +144,17 @@ class ProductController extends Controller
      */
     public function recommendations($id)
     {
-        $product = Product::findOrFail($id);
+        $shopId = request()->header('X-Shop-Id');
+        if (! is_numeric($shopId)) {
+            return response()->json(['message' => 'shop_id is required'], 422);
+        }
+        $shopId = (int) $shopId;
+
+        $product = Product::where('shop_id', $shopId)->findOrFail($id);
 
         // Related products (same category)
         $related = Product::where('category', $product->category)
+            ->where('shop_id', $shopId)
             ->where('id', '!=', $id)
             ->where('is_active', true)
             ->inRandomOrder()
@@ -146,6 +163,7 @@ class ProductController extends Controller
 
         // Popular products (most ordered)
         $popular = Product::where('is_active', true)
+            ->where('shop_id', $shopId)
             ->withCount('orderItems')
             ->orderBy('order_items_count', 'desc')
             ->limit(4)

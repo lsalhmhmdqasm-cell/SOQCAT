@@ -9,27 +9,29 @@ class ProductPolicy
 {
     public function viewAny(User $user): bool
     {
-        return true;
+        return $user->hasPermissionTo('manage_products');
     }
 
     public function view(User $user, Product $product): bool
     {
-        return true;
+        return $user->hasPermissionTo('manage_products') &&
+               ($user->isSuperAdmin() || $product->shop_id === $user->shop_id);
     }
 
     public function create(User $user): bool
     {
-        return $user->isSuperAdmin() || $user->isShopAdmin();
+        return $user->hasPermissionTo('manage_products');
     }
 
     public function update(User $user, Product $product): bool
     {
-        return $user->isSuperAdmin() || ($user->isShopAdmin() && $product->shop_id === $user->shop_id);
+        return $user->hasPermissionTo('manage_products') &&
+               ($user->isSuperAdmin() || $product->shop_id === $user->shop_id);
     }
 
     public function delete(User $user, Product $product): bool
     {
-        return $user->isSuperAdmin() || ($user->isShopAdmin() && $product->shop_id === $user->shop_id);
+        return $user->hasPermissionTo('manage_products') &&
+               ($user->isSuperAdmin() || $product->shop_id === $user->shop_id);
     }
 }
-
