@@ -17,6 +17,36 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// --- PRODUCTION SETUP HELPER (Temporary) ---
+Route::get('/run-production-seed', function () {
+    // Simple protection
+    if (request('secret') !== 'secret123') {
+        abort(403, 'Unauthorized access.');
+    }
+    
+    try {
+        // 1. Create Shop #1
+        \Illuminate\Support\Facades\Artisan::call('db:seed', [
+            '--class' => 'ProductionShopSeeder', 
+            '--force' => true
+        ]);
+        $shopOutput = \Illuminate\Support\Facades\Artisan::output();
+
+        // 2. Create Super Admin
+        \Illuminate\Support\Facades\Artisan::call('db:seed', [
+            '--class' => 'SuperAdminSeeder', 
+            '--force' => true
+        ]);
+        $adminOutput = \Illuminate\Support\Facades\Artisan::output();
+        
+        return "<h1>Setup Completed Successfully!</h1><pre>Shop Seeder:\n$shopOutput\n\nAdmin Seeder:\n$adminOutput</pre>";
+
+    } catch (\Exception $e) {
+        return "<h1>Error!</h1><pre>" . $e->getMessage() . "</pre>";
+    }
+});
+// -------------------------------------------
+
 Route::get('/super-admin/onboard-shop', function () {
     return view('super_admin.onboard_shop');
 });
