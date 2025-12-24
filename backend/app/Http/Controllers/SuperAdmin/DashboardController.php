@@ -104,9 +104,9 @@ class DashboardController extends Controller
             ->pluck('duration_ms');
         $productsP95Ms = $this->percentile($productsDurations->all(), 0.95);
 
-        $totalOrders24h = Order::where('created_at', '>=', $from)->count();
-        $delivered24h = Order::where('created_at', '>=', $from)->where('status', 'delivered')->count();
-        $orderSuccessRate = $totalOrders24h > 0 ? round(($delivered24h / $totalOrders24h) * 100, 2) : 0.0;
+        $totalOrders24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->count() : 0;
+        $delivered24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->where('status', 'delivered')->count() : 0;
+        $orderSuccessRate = $totalOrders24h > 0 ? round(($delivered24h * 1.0 / $totalOrders24h) * 100, 2) : 0.0;
 
         $crashFreeRate = $totalRequests > 0 ? round((($totalRequests - $errorRequests) / $totalRequests) * 100, 2) : 100.0;
 
@@ -127,7 +127,9 @@ class DashboardController extends Controller
                 ];
             });
 
-        $shopNames = Shop::whereIn('id', $shopsWorst->pluck('shop_id'))->pluck('name', 'id');
+        $shopNames = Schema::hasTable('shops')
+            ? Shop::whereIn('id', $shopsWorst->pluck('shop_id'))->pluck('name', 'id')
+            : collect();
         $shopsWorst = $shopsWorst->map(function ($item) use ($shopNames) {
             $item['shop_name'] = $shopNames[$item['shop_id']] ?? null;
             return $item;

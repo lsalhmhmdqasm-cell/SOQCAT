@@ -25,9 +25,20 @@ class ShopController extends Controller
         $shop = $request->shop; // Injected by IdentifyTenant middleware
         
         if (!$shop) {
-            // Check if user is asking for default platform landing
-            // Or return a 404 Not Found Shop
-             return response()->json(['message' => 'Shop not found for this domain'], 404);
+            return response()->json([
+                'mode' => 'platform',
+                'shopId' => null,
+                'shopName' => 'منصة قات شوب',
+                'logo' => 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
+                'primaryColor' => '#10b981',
+                'secondaryColor' => '#059669',
+                'deliveryFee' => 1000,
+                'features' => [
+                     'web' => true,
+                     'android' => false,
+                     'ios' => false,
+                ]
+            ]);
         }
 
         $client = Client::where('shop_id', $shop->id)->first();

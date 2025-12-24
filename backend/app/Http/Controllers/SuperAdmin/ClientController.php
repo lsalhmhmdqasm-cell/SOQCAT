@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class ClientController extends Controller
 {
@@ -48,6 +49,15 @@ class ClientController extends Controller
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (! Schema::hasTable('subscription_logs')) {
+            return response()->json([
+                'data' => [],
+                'total' => 0,
+                'per_page' => 20,
+                'current_page' => 1,
+            ]);
         }
 
         $client = Client::findOrFail($id);
