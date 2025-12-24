@@ -64,9 +64,14 @@ api.interceptors.response.use(
   (error) => {
     const status = error?.response?.status;
     const message = error?.response?.data?.message;
+    const url = error?.config?.url || '';
 
     if (status === 401) {
-      dispatchAppEvent('api-unauthorized', { message });
+      // CRITICAL FIX: Do NOT redirect to login if /me or /shop/config fails with 401.
+      // This allows the app to load in Guest mode instead of forcing a login loop.
+      if (!url.endsWith('/me') && !url.endsWith('/shop/config')) {
+        dispatchAppEvent('api-unauthorized', { message });
+      }
     }
 
     if (status === 403) {
