@@ -149,7 +149,15 @@ export const SuperAdminDashboard = () => {
             setMigrateOutput((res.data?.output || res.data?.message || 'تم تنفيذ المايجريشن بنجاح').trim());
             await fetchStats();
         } catch (e: any) {
-            setMigrateError(e?.response?.data?.error || e?.response?.data?.message || 'فشل تنفيذ المايجريشن');
+            const status = e?.response?.status;
+            const msg = e?.response?.data?.error || e?.response?.data?.message;
+            if (status === 401) {
+                setMigrateError('يلزم تسجيل الدخول كمشرف عام لتشغيل المايجريشن');
+            } else if (status === 403) {
+                setMigrateError(msg || 'غير مخول لتشغيل هذه العملية');
+            } else {
+                setMigrateError(msg || 'فشل تنفيذ المايجريشن');
+            }
         } finally {
             setIsMigrating(false);
         }

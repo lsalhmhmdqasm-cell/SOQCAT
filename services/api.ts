@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:8000/api'),
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -54,6 +54,18 @@ api.interceptors.request.use((config) => {
     const t = localStorage.getItem('accessToken');
     if (t) {
       (api.defaults.headers as any).common = { ...(api.defaults.headers as any).common, Authorization: `Bearer ${t}` };
+    }
+  } catch {}
+
+  // Fallback: If shopConfig is missing, try to use logged-in user's shop_id
+  try {
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      const uid = u?.shop_id;
+      if (uid && !((config.headers as any)['X-Shop-Id'])) {
+        (config.headers as any) = { ...(config.headers as any), 'X-Shop-Id': String(uid) };
+      }
     }
   } catch {}
   return config;
