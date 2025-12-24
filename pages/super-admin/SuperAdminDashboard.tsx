@@ -155,6 +155,8 @@ export const SuperAdminDashboard = () => {
                 setMigrateError('يلزم تسجيل الدخول كمشرف عام لتشغيل المايجريشن');
             } else if (status === 403) {
                 setMigrateError(msg || 'غير مخول لتشغيل هذه العملية');
+            } else if (status === 419) {
+                setMigrateError('تعارض CSRF: تم ضبط استثناء للمسار، جرّب مرة أخرى الآن');
             } else {
                 setMigrateError(msg || 'فشل تنفيذ المايجريشن');
             }

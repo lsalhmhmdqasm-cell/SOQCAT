@@ -128,6 +128,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
                 placeholder={mode === 'admin' ? 'admin' : 'example@mail.com'}
                 dir="ltr"
+                autoComplete={mode === 'admin' ? 'tel' : 'email'}
                 value={mode === 'admin' ? phone : email}
                 onChange={(e) => mode === 'admin' ? setPhone(e.target.value) : setEmail(e.target.value)}
               />
@@ -135,14 +136,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {(mode !== 'admin') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف {mode === 'customer-login' ? '(اختياري إذا كتبت البريد)' : ''}</label>
-                <input
-                  type="tel"
-                  className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
-                  placeholder="77xxxxxxx"
-                  dir="ltr"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+              <input
+                type="tel"
+                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
+                placeholder="77xxxxxxx"
+                dir="ltr"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
               </div>
             )}
           </div>
@@ -154,6 +156,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 focus:ring-2 focus:ring-green-500 focus:outline-none text-right"
               placeholder="••••••••"
               dir="ltr"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
