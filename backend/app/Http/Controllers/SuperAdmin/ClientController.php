@@ -13,8 +13,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -75,7 +75,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'shop_name' => 'required|string|max:255',
             'owner_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:clients,email',
+            'email' => 'required|email|unique:clients,email|unique:users,email',
             'phone' => 'required|string|max:20',
             'domain' => 'required|string|unique:clients,domain',
             'subscription_type' => 'required|in:monthly,yearly,lifetime',
@@ -84,6 +84,9 @@ class ClientController extends Controller
         ]);
 
         $plan = PricingPlan::findOrFail((int) $validated['pricing_plan_id']);
+        if (! ((bool) ($plan->web_enabled ?? false) || (bool) ($plan->android_enabled ?? false) || (bool) ($plan->ios_enabled ?? false))) {
+            return response()->json(['message' => 'At least one service must be enabled'], 422);
+        }
 
         return DB::transaction(function () use ($validated, $plan, $request) {
             $client = Client::create([

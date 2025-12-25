@@ -9,6 +9,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -29,14 +30,14 @@ class RequestMetricsMiddleware
         try {
             $response = $next($request);
         } catch (Throwable $e) {
-            $this->storeMetric($request, $start, 500, true, $shopId, $userId, get_class($e));
+            $this->storeMetricSafely($request, $start, 500, true, $shopId, $userId, get_class($e));
             throw $e;
         }
 
         $status = $response->getStatusCode();
-        $this->storeMetric($request, $start, $status, $status >= 500, $shopId, $userId, null);
+        $this->storeMetricSafely($request, $start, $status, $status >= 500, $shopId, $userId, null);
 
-        $this->maybeBroadcastAlerts($shopId);
+        $this->maybeBroadcastAlertsSafely($shopId);
 
         return $response;
     }
@@ -68,22 +69,41 @@ class RequestMetricsMiddleware
         return null;
     }
 
-    private function storeMetric(Request $request, float $start, int $statusCode, bool $isError, ?int $shopId, ?int $userId, ?string $exceptionClass): void
+    private function storeMetricSafely(Request $request, float $start, int $statusCode, bool $isError, ?int $shopId, ?int $userId, ?string $exceptionClass): void
     {
+        if (! Schema::hasTable('request_metrics')) {
+            return;
+        }
+
         $durationMs = (int) round((microtime(true) - $start) * 1000);
         $routeName = $request->route()?->getName();
 
-        RequestMetric::create([
-            'shop_id' => $shopId,
-            'user_id' => $userId,
-            'method' => $request->method(),
-            'path' => $request->path(),
-            'route_name' => $routeName,
-            'status_code' => $statusCode,
-            'duration_ms' => $durationMs,
-            'is_error' => $isError,
-            'exception_class' => $exceptionClass,
-        ]);
+        try {
+            RequestMetric::create([
+                'shop_id' => $shopId,
+                'user_id' => $userId,
+                'method' => $request->method(),
+                'path' => $request->path(),
+                'route_name' => $routeName,
+                'status_code' => $statusCode,
+                'duration_ms' => $durationMs,
+                'is_error' => $isError,
+                'exception_class' => $exceptionClass,
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function maybeBroadcastAlertsSafely(?int $shopId): void
+    {
+        if (! Schema::hasTable('request_metrics')) {
+            return;
+        }
+
+        try {
+            $this->maybeBroadcastAlerts($shopId);
+        } catch (\Throwable $e) {
+        }
     }
 
     private function maybeBroadcastAlerts(?int $shopId): void
