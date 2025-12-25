@@ -7,6 +7,8 @@ use App\Models\Client;
 use App\Models\SystemUpdate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class UpdateController extends Controller
 {
@@ -47,7 +49,7 @@ class UpdateController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if (!$request->has('target_clients')) {
+        if (! $request->has('target_clients')) {
             return response()->json(['message' => 'Validation error', 'errors' => ['target_clients' => ['The target_clients field is required.']]], 422);
         }
 
@@ -100,18 +102,38 @@ class UpdateController extends Controller
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        $lock = Cache::lock('super_admin:maintenance:migrate', 600);
+        if (! $lock->get()) {
+            return response()->json(['message' => 'Migration is already running'], 409);
+        }
+
         try {
             Artisan::call('migrate', ['--force' => true]);
             $output = Artisan::output();
+
+            Log::info('super_admin_migrate_executed', [
+                'user_id' => $request->user()->id,
+                'ip' => $request->ip(),
+            ]);
+
             return response()->json([
                 'message' => 'Migrations executed',
                 'output' => $output,
             ]);
         } catch (\Throwable $e) {
+            Log::error('super_admin_migrate_failed', [
+                'user_id' => $request->user()->id,
+                'ip' => $request->ip(),
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'message' => 'Migration failed',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal Server Error',
             ], 500);
+        } finally {
+            optional($lock)->release();
         }
     }
 }
