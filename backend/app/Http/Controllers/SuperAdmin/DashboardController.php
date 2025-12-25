@@ -12,6 +12,7 @@ use App\Models\SupportTicket;
 use App\Models\SystemUpdate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
@@ -23,41 +24,81 @@ class DashboardController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $stats = [
-            'total_clients' => Schema::hasTable('clients') ? Client::count() : 0,
-            'active_clients' => Schema::hasTable('clients') ? Client::where('status', 'active')->count() : 0,
-            'trial_clients' => Schema::hasTable('clients') ? Client::where('status', 'trial')->count() : 0,
-            'suspended_clients' => Schema::hasTable('clients') ? Client::where('status', 'suspended')->count() : 0,
-            'expired_clients' => Schema::hasTable('clients') ? Client::where('status', 'expired')->count() : 0,
+        try {
+            $stats = [
+                'total_clients' => Schema::hasTable('clients') ? Client::count() : 0,
+                'active_clients' => Schema::hasTable('clients') ? Client::where('status', 'active')->count() : 0,
+                'trial_clients' => Schema::hasTable('clients') ? Client::where('status', 'trial')->count() : 0,
+                'suspended_clients' => Schema::hasTable('clients') ? Client::where('status', 'suspended')->count() : 0,
+                'expired_clients' => Schema::hasTable('clients') ? Client::where('status', 'expired')->count() : 0,
 
-            'open_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::whereIn('status', ['open', 'in_progress'])->count() : 0,
-            'urgent_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::where('priority', 'urgent')->where('status', '!=', 'closed')->count() : 0,
+                'open_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::whereIn('status', ['open', 'in_progress'])->count() : 0,
+                'urgent_tickets' => Schema::hasTable('support_tickets') ? SupportTicket::where('priority', 'urgent')->where('status', '!=', 'closed')->count() : 0,
 
-            'pending_updates' => Schema::hasTable('system_updates') ? SystemUpdate::whereDate('release_date', '<=', now())->count() : 0,
+                'pending_updates' => Schema::hasTable('system_updates') ? SystemUpdate::whereDate('release_date', '<=', now())->count() : 0,
 
-            'monthly_revenue' => $this->safeMonthlyRevenue(),
-            'total_orders_today' => Schema::hasTable('orders') ? Order::whereDate('created_at', today())->count() : 0,
+                'monthly_revenue' => $this->safeMonthlyRevenue(),
+                'total_orders_today' => Schema::hasTable('orders') ? Order::whereDate('created_at', today())->count() : 0,
+            ];
+
+            $recent_clients = Schema::hasTable('clients') ? Client::latest()->take(5)->get() : collect();
+            $recent_tickets = Schema::hasTable('support_tickets') ? SupportTicket::with('client')->latest()->take(5)->get() : collect();
+
+            $monitoring = $this->buildMonitoringMetrics();
+
+            $response = [
+                'stats' => $stats,
+                'recent_clients' => $recent_clients,
+                'recent_tickets' => $recent_tickets,
+                'monitoring' => $monitoring,
+            ];
+
+            $this->safeBroadcastMonitoringAlert([
+                'type' => 'daily_summary',
+                'summary' => $monitoring,
+                'generated_at' => now()->toDateTimeString(),
+            ]);
+
+            return response()->json($response);
+        } catch (\Throwable $e) {
+            Log::error('super_admin_dashboard_failed', [
+                'user_id' => $user->id,
+                'ip' => $request->ip(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json($this->defaultDashboardPayload());
+        }
+    }
+
+    private function defaultDashboardPayload(): array
+    {
+        return [
+            'stats' => [
+                'total_clients' => 0,
+                'active_clients' => 0,
+                'trial_clients' => 0,
+                'suspended_clients' => 0,
+                'expired_clients' => 0,
+                'open_tickets' => 0,
+                'urgent_tickets' => 0,
+                'pending_updates' => 0,
+                'monthly_revenue' => 0,
+                'total_orders_today' => 0,
+            ],
+            'recent_clients' => [],
+            'recent_tickets' => [],
+            'monitoring' => [
+                'crash_free_rate' => 100.0,
+                'avg_response_ms' => 0,
+                'p95_response_ms' => 0,
+                'products_p95_ms' => 0,
+                'order_success_rate' => 0.0,
+                'requests_last_24h' => 0,
+                'errors_last_24h' => 0,
+                'shops_worst' => [],
+            ],
         ];
-
-        $recent_clients = Schema::hasTable('clients') ? Client::latest()->take(5)->get() : collect();
-        $recent_tickets = Schema::hasTable('support_tickets') ? SupportTicket::with('client')->latest()->take(5)->get() : collect();
-
-        $monitoring = $this->buildMonitoringMetrics();
-
-        $response = [
-            'stats' => $stats,
-            'recent_clients' => $recent_clients,
-            'recent_tickets' => $recent_tickets,
-            'monitoring' => $monitoring,
-        ];
-
-        $this->safeBroadcastMonitoringAlert([
-            'type' => 'daily_summary',
-            'summary' => $monitoring,
-            'generated_at' => now()->toDateTimeString(),
-        ]);
-
-        return response()->json($response);
     }
 
     private function safeMonthlyRevenue()
@@ -92,59 +133,72 @@ class DashboardController extends Controller
             ];
         }
 
-        $totalRequests = RequestMetric::where('created_at', '>=', $from)->count();
-        $errorRequests = RequestMetric::where('created_at', '>=', $from)->where('status_code', '>=', 500)->count();
-        $avgResponseMs = (int) round(RequestMetric::where('created_at', '>=', $from)->avg('duration_ms') ?? 0);
-        $allDurations = RequestMetric::where('created_at', '>=', $from)->pluck('duration_ms');
-        $p95ResponseMs = $this->percentile($allDurations->all(), 0.95);
-        $productsDurations = RequestMetric::where('created_at', '>=', $from)
-            ->where('path', 'like', 'api/products%')
-            ->pluck('duration_ms');
-        $productsP95Ms = $this->percentile($productsDurations->all(), 0.95);
+        try {
+            $totalRequests = RequestMetric::where('created_at', '>=', $from)->count();
+            $errorRequests = RequestMetric::where('created_at', '>=', $from)->where('status_code', '>=', 500)->count();
+            $avgResponseMs = (int) round(RequestMetric::where('created_at', '>=', $from)->avg('duration_ms') ?? 0);
+            $allDurations = RequestMetric::where('created_at', '>=', $from)->pluck('duration_ms');
+            $p95ResponseMs = $this->percentile($allDurations->all(), 0.95);
+            $productsDurations = RequestMetric::where('created_at', '>=', $from)
+                ->where('path', 'like', 'api/products%')
+                ->pluck('duration_ms');
+            $productsP95Ms = $this->percentile($productsDurations->all(), 0.95);
 
-        $totalOrders24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->count() : 0;
-        $delivered24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->where('status', 'delivered')->count() : 0;
-        $orderSuccessRate = $totalOrders24h > 0 ? round(($delivered24h * 1.0 / $totalOrders24h) * 100, 2) : 0.0;
+            $totalOrders24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->count() : 0;
+            $delivered24h = Schema::hasTable('orders') ? Order::where('created_at', '>=', $from)->where('status', 'delivered')->count() : 0;
+            $orderSuccessRate = $totalOrders24h > 0 ? round(($delivered24h * 1.0 / $totalOrders24h) * 100, 2) : 0.0;
 
-        $crashFreeRate = $totalRequests > 0 ? round((($totalRequests - $errorRequests) / $totalRequests) * 100, 2) : 100.0;
+            $crashFreeRate = $totalRequests > 0 ? round((($totalRequests - $errorRequests) / $totalRequests) * 100, 2) : 100.0;
 
-        $shopsWorst = RequestMetric::selectRaw('shop_id, SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as errors, COUNT(*) as total')
-            ->where('created_at', '>=', $from)
-            ->whereNotNull('shop_id')
-            ->groupBy('shop_id')
-            ->orderByRaw('errors * 1.0 / NULLIF(total, 0) DESC')
-            ->limit(5)
-            ->get()
-            ->map(function ($row) {
-                $rate = $row->total > 0 ? round((($row->total - $row->errors) / $row->total) * 100, 2) : 100.0;
+            $shopsWorst = RequestMetric::selectRaw('shop_id, SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as errors, COUNT(*) as total')
+                ->where('created_at', '>=', $from)
+                ->whereNotNull('shop_id')
+                ->groupBy('shop_id')
+                ->orderByRaw('errors * 1.0 / NULLIF(total, 0) DESC')
+                ->limit(5)
+                ->get()
+                ->map(function ($row) {
+                    $rate = $row->total > 0 ? round((($row->total - $row->errors) / $row->total) * 100, 2) : 100.0;
 
-                return [
-                    'shop_id' => (int) $row->shop_id,
-                    'crash_free_rate' => $rate,
-                    'errors' => (int) $row->errors,
-                    'total' => (int) $row->total,
-                ];
+                    return [
+                        'shop_id' => (int) $row->shop_id,
+                        'crash_free_rate' => $rate,
+                        'errors' => (int) $row->errors,
+                        'total' => (int) $row->total,
+                    ];
+                });
+
+            $shopNames = Schema::hasTable('shops')
+                ? Shop::whereIn('id', $shopsWorst->pluck('shop_id'))->pluck('name', 'id')
+                : collect();
+            $shopsWorst = $shopsWorst->map(function ($item) use ($shopNames) {
+                $item['shop_name'] = $shopNames[$item['shop_id']] ?? null;
+
+                return $item;
             });
 
-        $shopNames = Schema::hasTable('shops')
-            ? Shop::whereIn('id', $shopsWorst->pluck('shop_id'))->pluck('name', 'id')
-            : collect();
-        $shopsWorst = $shopsWorst->map(function ($item) use ($shopNames) {
-            $item['shop_name'] = $shopNames[$item['shop_id']] ?? null;
-
-            return $item;
-        });
-
-        return [
-            'crash_free_rate' => $crashFreeRate,
-            'avg_response_ms' => $avgResponseMs,
-            'p95_response_ms' => $p95ResponseMs,
-            'products_p95_ms' => $productsP95Ms,
-            'order_success_rate' => $orderSuccessRate,
-            'requests_last_24h' => $totalRequests,
-            'errors_last_24h' => $errorRequests,
-            'shops_worst' => $shopsWorst,
-        ];
+            return [
+                'crash_free_rate' => $crashFreeRate,
+                'avg_response_ms' => $avgResponseMs,
+                'p95_response_ms' => $p95ResponseMs,
+                'products_p95_ms' => $productsP95Ms,
+                'order_success_rate' => $orderSuccessRate,
+                'requests_last_24h' => $totalRequests,
+                'errors_last_24h' => $errorRequests,
+                'shops_worst' => $shopsWorst,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'crash_free_rate' => 100.0,
+                'avg_response_ms' => 0,
+                'p95_response_ms' => 0,
+                'products_p95_ms' => 0,
+                'order_success_rate' => 0.0,
+                'requests_last_24h' => 0,
+                'errors_last_24h' => 0,
+                'shops_worst' => collect(),
+            ];
+        }
     }
 
     public function metrics(Request $request)

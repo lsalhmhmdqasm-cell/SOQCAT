@@ -384,8 +384,23 @@ export const ClientManager = () => {
                                         } else {
                                             showToast('تم إنشاء المحل بنجاح', 'success');
                                         }
-                                    } catch {
-                                        showToast('فشل إنشاء المحل', 'error');
+                                    } catch (e: any) {
+                                        const status = e?.response?.status;
+                                        const data = e?.response?.data;
+                                        const message = data?.message;
+                                        const errors = data?.errors;
+
+                                        if (status === 422 && errors && typeof errors === 'object') {
+                                            const firstMessages = Object.values(errors)
+                                                .flat()
+                                                .filter(Boolean)
+                                                .slice(0, 3)
+                                                .join(' | ');
+                                            showToast(firstMessages || message || 'تحقق من البيانات المدخلة', 'error');
+                                            return;
+                                        }
+
+                                        showToast(message || 'فشل إنشاء المحل', 'error');
                                     }
                                 }}
                                 className="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600"
