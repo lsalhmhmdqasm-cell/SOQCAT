@@ -17,6 +17,7 @@ class OrderPolicy
         if ($user->hasPermissionTo('manage_orders')) {
             return $user->isSuperAdmin() || $order->shop_id === $user->shop_id;
         }
+
         // Customer can view their own orders
         return $order->user_id === $user->id;
     }

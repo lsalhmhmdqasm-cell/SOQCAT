@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Client;
 use App\Models\Shop;
 use App\Models\User;
-use App\Models\Client;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -18,6 +18,7 @@ class ProductionShopSeeder extends Seeder
         // Check if shop 1 exists
         if (Shop::find(1)) {
             $this->command->info('Shop ID 1 already exists. Skipping...');
+
             return;
         }
 

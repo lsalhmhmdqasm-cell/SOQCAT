@@ -56,7 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::get('/shops', [ShopController::class, 'index']);
+    Route::get('/shops', [ShopController::class, 'index']);
 
     // Super Admin: Leads management
     Route::get('/super-admin/leads', [LeadController::class, 'index']);
@@ -86,8 +86,6 @@ Route::get('/shops', [ShopController::class, 'index']);
         Route::get('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'index']);
         Route::post('/system-updates', [\App\Http\Controllers\SystemUpdateController::class, 'store']);
         Route::delete('/system-updates/{id}', [\App\Http\Controllers\SystemUpdateController::class, 'destroy']);
-
-        
 
         Route::get('/wishlist', [\App\Http\Controllers\WishlistController::class, 'index']);
         Route::post('/wishlist/{productId}', [\App\Http\Controllers\WishlistController::class, 'toggle']);
@@ -143,6 +141,7 @@ Route::get('/shops', [ShopController::class, 'index']);
                 if (! is_numeric($shopId)) {
                     return response()->json(['message' => 'shop_id is required'], 422);
                 }
+
                 return \App\Models\User::where('role', 'customer')
                     ->where('shop_id', (int) $shopId)
                     ->get();

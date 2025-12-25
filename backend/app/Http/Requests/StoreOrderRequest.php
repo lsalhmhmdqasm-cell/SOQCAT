@@ -27,10 +27,12 @@ class StoreOrderRequest extends FormRequest
                     if (! $this->user()?->isSuperAdmin()) {
                         if (! $userShopId) {
                             $fail('لا يمكن إنشاء طلب بدون متجر مرتبط بهذا المستخدم');
+
                             return;
                         }
                         if ((int) $userShopId !== (int) $value) {
                             $fail('المتجر غير صحيح لهذا المستخدم');
+
                             return;
                         }
                     }

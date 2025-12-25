@@ -3,9 +3,6 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ProvisionAndroidApp;
-use App\Jobs\ProvisionIOSApp;
-use App\Jobs\ProvisionWebShop;
 use App\Models\Client;
 use App\Models\PricingPlan;
 use App\Models\Subscription;
@@ -90,6 +87,11 @@ class ClientController extends Controller
         }
 
         return DB::transaction(function () use ($validated, $plan, $request) {
+            $isLifetime = $validated['subscription_type'] === 'lifetime';
+            $price = $validated['subscription_type'] === 'monthly'
+                ? ($plan->monthly_price ?? 0)
+                : ($validated['subscription_type'] === 'yearly' ? ($plan->yearly_price ?? 0) : ($plan->lifetime_price ?? 0));
+
             $client = Client::create([
                 'shop_name' => $validated['shop_name'],
                 'owner_name' => $validated['owner_name'],
@@ -97,9 +99,12 @@ class ClientController extends Controller
                 'phone' => $validated['phone'],
                 'domain' => $validated['domain'],
                 'subscription_type' => $validated['subscription_type'],
-                'status' => 'trial',
+                'license_type' => $isLifetime ? 'lifetime' : 'subscription',
+                'paid_amount' => $isLifetime ? $price : null,
+                'payment_date' => $isLifetime ? now()->toDateString() : null,
+                'status' => $isLifetime ? 'active' : 'trial',
                 'subscription_start' => now(),
-                'subscription_end' => now()->addDays(14),
+                'subscription_end' => $isLifetime ? null : now()->addDays(14),
             ]);
 
             $shop = \App\Models\Shop::create([
@@ -127,28 +132,15 @@ class ClientController extends Controller
                 'shop_id' => $shop->id,
             ]);
 
-            if ($shop->enable_web && $shop->web_status === 'pending') {
-                ProvisionWebShop::dispatch($shop->id)->afterCommit();
-            }
-            if ($shop->enable_android && $shop->android_status === 'pending') {
-                ProvisionAndroidApp::dispatch($shop->id)->afterCommit();
-            }
-            if ($shop->enable_ios && $shop->ios_status === 'pending') {
-                ProvisionIOSApp::dispatch($shop->id)->afterCommit();
-            }
-
-            $price = $validated['subscription_type'] === 'monthly'
-                ? ($plan->monthly_price ?? 0)
-                : ($validated['subscription_type'] === 'yearly' ? ($plan->yearly_price ?? 0) : ($plan->lifetime_price ?? 0));
-
             Subscription::create([
                 'client_id' => $client->id,
                 'pricing_plan_id' => $plan->id,
                 'plan_name' => $plan->name,
                 'price' => $price,
-                'billing_cycle' => $validated['subscription_type'] === 'lifetime' ? 'yearly' : $validated['subscription_type'],
+                'billing_cycle' => $isLifetime ? 'yearly' : $validated['subscription_type'],
+                'features' => $plan->features,
                 'status' => 'active',
-                'next_billing_date' => now()->addMonth(),
+                'next_billing_date' => $isLifetime ? null : ($validated['subscription_type'] === 'monthly' ? now()->addMonth() : now()->addYear()),
             ]);
 
             return response()->json([
@@ -210,6 +202,9 @@ class ClientController extends Controller
         ]);
 
         $client = Client::findOrFail($id);
+        if ($client->license_type === 'lifetime') {
+            return response()->json(['message' => 'لا يمكن تمديد اشتراك مدى الحياة'], 422);
+        }
         $newEnd = $client->subscription_end
             ? $client->subscription_end->addMonths($request->months)
             : now()->addMonths($request->months);
@@ -251,7 +246,12 @@ class ClientController extends Controller
         } catch (\Throwable $e) {
         }
 
-        return response()->json(PricingPlan::where('is_active', true)->orderBy('sort_order')->get());
+        $query = PricingPlan::query()->orderBy('sort_order');
+        if (! $request->boolean('include_inactive')) {
+            $query->where('is_active', true);
+        }
+
+        return response()->json($query->get());
     }
 
     public function storePlan(Request $request)
@@ -360,9 +360,9 @@ class ClientController extends Controller
             $sub->billing_cycle = $request->billing_cycle === 'lifetime' ? 'yearly' : $request->billing_cycle;
             $sub->features = $plan->features;
             $sub->status = 'active';
-            $sub->next_billing_date = $request->billing_cycle === 'monthly'
-                ? now()->addMonth()
-                : now()->addYear();
+            $sub->next_billing_date = $request->billing_cycle === 'lifetime'
+                ? null
+                : ($request->billing_cycle === 'monthly' ? now()->addMonth() : now()->addYear());
             $sub->save();
 
             $shopId = $client->shop_id;
@@ -388,6 +388,9 @@ class ClientController extends Controller
 
             $client->subscription_type = $request->billing_cycle;
             $client->status = 'active';
+            $client->license_type = $request->billing_cycle === 'lifetime' ? 'lifetime' : 'subscription';
+            $client->paid_amount = $request->billing_cycle === 'lifetime' ? $price : null;
+            $client->payment_date = $request->billing_cycle === 'lifetime' ? now()->toDateString() : null;
             $client->subscription_start = now();
             $client->subscription_end = $request->billing_cycle === 'monthly'
                 ? now()->addMonth()

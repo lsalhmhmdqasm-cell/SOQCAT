@@ -25,18 +25,22 @@ export const PricingPlans: React.FC = () => {
   const [cycle, setCycle] = useState<'monthly' | 'yearly' | 'lifetime'>('monthly');
   const [onlyActive, setOnlyActive] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [busyById, setBusyById] = useState<Record<number, 'toggling' | 'deleting' | 'saving'>>({});
+  const [error, setError] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState<{ name: string; description?: string; monthly_price?: string; yearly_price?: string; lifetime_price?: string; featuresRaw: string; sort_order?: string; is_active: boolean; web_enabled: boolean; android_enabled: boolean; ios_enabled: boolean }>({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '{ }', sort_order: '0', is_active: true, web_enabled: true, android_enabled: true, ios_enabled: true });
   const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ description?: string; monthly_price?: string; yearly_price?: string; lifetime_price?: string; sort_order?: string; is_active?: boolean; web_enabled?: boolean; android_enabled?: boolean; ios_enabled?: boolean }>({ description: '', monthly_price: '', yearly_price: '', lifetime_price: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
+  const [editForm, setEditForm] = useState<{ name?: string; description?: string; monthly_price?: string; yearly_price?: string; lifetime_price?: string; featuresRaw?: string; sort_order?: string; is_active?: boolean; web_enabled?: boolean; android_enabled?: boolean; ios_enabled?: boolean }>({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPlans = async () => {
       setLoading(true);
       try {
-        const res = await api.get('/super_admin/pricing-plans');
+        setError(null);
+        const res = await api.get('/super_admin/pricing-plans', { params: { include_inactive: 1 } });
         setPlans((res.data || []).sort((a: Plan, b: Plan) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
-      } catch {
+      } catch (e: any) {
+        setError(e?.response?.data?.message || 'فشل تحميل الباقات');
       } finally {
         setLoading(false);
       }
@@ -47,8 +51,11 @@ export const PricingPlans: React.FC = () => {
   const reload = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/super_admin/pricing-plans');
+      setError(null);
+      const res = await api.get('/super_admin/pricing-plans', { params: { include_inactive: 1 } });
       setPlans((res.data || []).sort((a: Plan, b: Plan) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'فشل تحميل الباقات');
     } finally {
       setLoading(false);
     }
@@ -61,10 +68,12 @@ export const PricingPlans: React.FC = () => {
       features = JSON.parse(createForm.featuresRaw || '{}');
       if (typeof features !== 'object' || Array.isArray(features)) throw new Error();
     } catch {
+      setError('صيغة JSON في الميزات غير صحيحة');
       return;
     }
     setCreating(true);
     try {
+      setError(null);
       await api.post('/super_admin/pricing-plans', {
         name: createForm.name,
         description: createForm.description || null,
@@ -80,6 +89,15 @@ export const PricingPlans: React.FC = () => {
       });
       setCreateForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '{ }', sort_order: '0', is_active: true, web_enabled: true, android_enabled: true, ios_enabled: true });
       await reload();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      const errors = e?.response?.data?.errors;
+      if (errors && typeof errors === 'object') {
+        const firstMessages = Object.values(errors).flat().filter(Boolean).slice(0, 3).join(' | ');
+        setError(firstMessages || msg || 'فشل إضافة الباقة');
+      } else {
+        setError(msg || 'فشل إضافة الباقة');
+      }
     } finally {
       setCreating(false);
     }
@@ -87,29 +105,85 @@ export const PricingPlans: React.FC = () => {
 
   const handleUpdate = async (id: number) => {
     const payload: any = {};
+    if (editForm.name !== undefined) payload.name = editForm.name;
     if (editForm.description !== undefined) payload.description = editForm.description;
     if (editForm.monthly_price !== undefined && editForm.monthly_price !== '') payload.monthly_price = Number(editForm.monthly_price);
     if (editForm.yearly_price !== undefined && editForm.yearly_price !== '') payload.yearly_price = Number(editForm.yearly_price);
     if (editForm.lifetime_price !== undefined && editForm.lifetime_price !== '') payload.lifetime_price = Number(editForm.lifetime_price);
+    if (editForm.featuresRaw !== undefined) {
+      try {
+        const features = JSON.parse(editForm.featuresRaw || '{}');
+        if (typeof features !== 'object' || Array.isArray(features)) throw new Error();
+        payload.features = features;
+      } catch {
+        setError('صيغة JSON في الميزات غير صحيحة');
+        return;
+      }
+    }
     if (editForm.sort_order !== undefined && editForm.sort_order !== '') payload.sort_order = Number(editForm.sort_order);
     if (typeof editForm.is_active === 'boolean') payload.is_active = editForm.is_active;
     if (typeof editForm.web_enabled === 'boolean') payload.web_enabled = editForm.web_enabled;
     if (typeof editForm.android_enabled === 'boolean') payload.android_enabled = editForm.android_enabled;
     if (typeof editForm.ios_enabled === 'boolean') payload.ios_enabled = editForm.ios_enabled;
-    await api.put(`/super_admin/pricing-plans/${id}`, payload);
-    setEditId(null);
-    setEditForm({ description: '', monthly_price: '', yearly_price: '', lifetime_price: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
-    await reload();
+    try {
+      setError(null);
+      setBusyById((prev) => ({ ...prev, [id]: 'saving' }));
+      await api.put(`/super_admin/pricing-plans/${id}`, payload);
+      setEditId(null);
+      setEditForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
+      await reload();
+    } catch (e: any) {
+      const msg = e?.response?.data?.message;
+      const errors = e?.response?.data?.errors;
+      if (errors && typeof errors === 'object') {
+        const firstMessages = Object.values(errors).flat().filter(Boolean).slice(0, 3).join(' | ');
+        setError(firstMessages || msg || 'فشل تعديل الباقة');
+      } else {
+        setError(msg || 'فشل تعديل الباقة');
+      }
+    } finally {
+      setBusyById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await api.delete(`/super_admin/pricing-plans/${id}`);
-    await reload();
+    const ok = window.confirm('هل أنت متأكد من حذف الباقة؟');
+    if (!ok) return;
+    try {
+      setError(null);
+      setBusyById((prev) => ({ ...prev, [id]: 'deleting' }));
+      await api.delete(`/super_admin/pricing-plans/${id}`);
+      await reload();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'فشل حذف الباقة');
+    } finally {
+      setBusyById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   const handleToggle = async (id: number) => {
-    await api.post(`/super_admin/pricing-plans/${id}/toggle`);
-    await reload();
+    try {
+      setError(null);
+      setBusyById((prev) => ({ ...prev, [id]: 'toggling' }));
+      await api.post(`/super_admin/pricing-plans/${id}/toggle`);
+      await reload();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'فشل تبديل حالة الباقة');
+    } finally {
+      setBusyById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   const filteredPlans = useMemo(() => {
@@ -142,6 +216,12 @@ export const PricingPlans: React.FC = () => {
             <Button onClick={reload} variant="outline" className="border-gray-300">تحديث</Button>
           </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 mb-6 text-sm">
+            {error}
+          </div>
+        )}
 
         <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -247,6 +327,7 @@ export const PricingPlans: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredPlans.map((p) => {
               const price = priceForCycle(p);
+              const busy = busyById[p.id];
               const badgeIcon =
                 p.name.toLowerCase() === 'basic' ? <Package size={18} /> :
                 p.name.toLowerCase() === 'pro' ? <Zap size={18} /> :
@@ -289,6 +370,7 @@ export const PricingPlans: React.FC = () => {
                       variant={p.name.toLowerCase() === 'pro' ? 'primary' : 'outline'}
                       onClick={() => navigate('/super-admin/clients')}
                       className={p.name.toLowerCase() === 'pro' ? '' : 'border-gray-300'}
+                      disabled={!!busy}
                     >
                       <Shield size={16} />
                       إسناد لعميل
@@ -296,23 +378,28 @@ export const PricingPlans: React.FC = () => {
                     <Button
                       variant="secondary"
                       onClick={() => setCycle(cycle === 'monthly' ? 'yearly' : cycle === 'yearly' ? 'lifetime' : 'monthly')}
+                      disabled={!!busy}
                     >
                       <DollarSign size={16} />
                       تبديل الدورة
                     </Button>
-                    <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(p.id); setEditForm({ description: p.description || '', monthly_price: String(p.monthly_price ?? ''), yearly_price: String(p.yearly_price ?? ''), lifetime_price: String(p.lifetime_price ?? ''), sort_order: String(p.sort_order ?? ''), is_active: p.is_active }); }}>
+                    <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(p.id); setEditForm({ name: p.name || '', description: p.description || '', monthly_price: String(p.monthly_price ?? ''), yearly_price: String(p.yearly_price ?? ''), lifetime_price: String(p.lifetime_price ?? ''), featuresRaw: JSON.stringify(p.features || {}, null, 2), sort_order: String(p.sort_order ?? ''), is_active: p.is_active, web_enabled: !!p.web_enabled, android_enabled: !!p.android_enabled, ios_enabled: !!p.ios_enabled }); }} disabled={!!busy}>
                       تعديل
                     </Button>
-                    <Button variant="outline" className="border-gray-300" onClick={() => handleToggle(p.id)}>
-                      تبديل الحالة
+                    <Button variant="outline" className="border-gray-300" onClick={() => handleToggle(p.id)} disabled={!!busy}>
+                      {busy === 'toggling' ? 'جاري...' : 'تبديل الحالة'}
                     </Button>
-                    <Button variant="outline" className="border-red-300 text-red-700" onClick={() => handleDelete(p.id)}>
-                      حذف
+                    <Button variant="outline" className="border-red-300 text-red-700" onClick={() => handleDelete(p.id)} disabled={!!busy}>
+                      {busy === 'deleting' ? 'جاري...' : 'حذف'}
                     </Button>
                   </div>
                   {editId === p.id && (
                     <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-600">اسم</label>
+                          <input value={editForm.name ?? ''} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+                        </div>
                         <div>
                           <label className="text-xs text-gray-600">وصف</label>
                           <input value={editForm.description ?? ''} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
@@ -334,6 +421,10 @@ export const PricingPlans: React.FC = () => {
                           <input value={editForm.sort_order ?? ''} onChange={(e) => setEditForm({ ...editForm, sort_order: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
                         </div>
                       </div>
+                      <div className="mt-3">
+                        <label className="text-xs text-gray-600">الميزات JSON</label>
+                        <textarea value={editForm.featuresRaw ?? ''} onChange={(e) => setEditForm({ ...editForm, featuresRaw: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg font-mono text-xs" rows={3} />
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-gray-600">Web</label>
@@ -349,8 +440,8 @@ export const PricingPlans: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mt-3">
-                        <Button onClick={() => handleUpdate(p.id)}>حفظ</Button>
-                        <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(null); setEditForm({ description: '', monthly_price: '', yearly_price: '', lifetime_price: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined }); }}>إلغاء</Button>
+                        <Button onClick={() => handleUpdate(p.id)} disabled={busyById[p.id] === 'saving'}>{busyById[p.id] === 'saving' ? 'جاري الحفظ...' : 'حفظ'}</Button>
+                        <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(null); setEditForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined }); }}>إلغاء</Button>
                       </div>
                     </div>
                   )}

@@ -39,7 +39,7 @@ class ClientObserver
             ];
 
             $newStatus = $statusMap[$client->status] ?? 'suspended';
-            
+
             if ($shop->status !== $newStatus) {
                 $shop->status = $newStatus;
                 $shop->save();

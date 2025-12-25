@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Shop;
 use App\Models\Client;
+use App\Models\Shop;
 use Illuminate\Http\Request;
 
 class ShopController extends Controller
@@ -23,8 +23,8 @@ class ShopController extends Controller
     public function config(Request $request)
     {
         $shop = $request->shop; // Injected by IdentifyTenant middleware
-        
-        if (!$shop) {
+
+        if (! $shop) {
             return response()->json([
                 'mode' => 'platform',
                 'shopId' => null,
@@ -34,10 +34,10 @@ class ShopController extends Controller
                 'secondaryColor' => '#059669',
                 'deliveryFee' => 1000,
                 'features' => [
-                     'web' => true,
-                     'android' => false,
-                     'ios' => false,
-                ]
+                    'web' => true,
+                    'android' => false,
+                    'ios' => false,
+                ],
             ]);
         }
 
@@ -51,10 +51,10 @@ class ShopController extends Controller
             'secondaryColor' => $client?->secondary_color ?? '#059669',
             'deliveryFee' => (int) ($shop->delivery_fee ?? 1000),
             'features' => [
-                 'web' => $shop->enable_web,
-                 'android' => $shop->enable_android,
-                 'ios' => $shop->enable_ios,
-            ]
+                'web' => $shop->enable_web,
+                'android' => $shop->enable_android,
+                'ios' => $shop->enable_ios,
+            ],
         ]);
     }
 
@@ -109,8 +109,8 @@ class ShopController extends Controller
         $validated = $request->validate([
             'shopName' => 'sometimes|string|max:255',
             'logo' => 'sometimes|nullable|string|max:500',
-            'primaryColor' => ['sometimes','string','regex:/^#?[0-9A-Fa-f]{6}$/'],
-            'secondaryColor' => ['sometimes','string','regex:/^#?[0-9A-Fa-f]{6}$/'],
+            'primaryColor' => ['sometimes', 'string', 'regex:/^#?[0-9A-Fa-f]{6}$/'],
+            'secondaryColor' => ['sometimes', 'string', 'regex:/^#?[0-9A-Fa-f]{6}$/'],
             'deliveryFee' => 'sometimes|integer|min:0|max:100000',
         ]);
 
@@ -150,6 +150,7 @@ class ShopController extends Controller
     {
         $shop = Shop::findOrFail($id);
         $client = Client::where('shop_id', $shop->id)->first();
+
         return response()->json([
             'shopName' => $client?->shop_name ?? $shop->name,
             'logo' => $client?->logo_url ?? $shop->logo ?? '',

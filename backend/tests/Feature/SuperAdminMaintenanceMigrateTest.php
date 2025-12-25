@@ -31,4 +31,3 @@ class SuperAdminMaintenanceMigrateTest extends TestCase
         $res->assertOk()->assertJsonStructure(['message', 'output']);
     }
 }
-

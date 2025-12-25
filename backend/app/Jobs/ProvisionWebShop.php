@@ -23,7 +23,7 @@ class ProvisionWebShop implements ShouldQueue
     public function handle(): void
     {
         $shop = Shop::find($this->shopId);
-        if (!$shop) {
+        if (! $shop) {
             return;
         }
 

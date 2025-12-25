@@ -3,15 +3,15 @@
 namespace App\Providers;
 
 // use Illuminate\Support\Facades\Gate;
-use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use App\Models\Order;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Shop;
-use App\Models\PaymentMethod;
 use App\Policies\OrderPolicy;
+use App\Policies\PaymentMethodPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\ShopPolicy;
-use App\Policies\PaymentMethodPolicy;
+use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
 {

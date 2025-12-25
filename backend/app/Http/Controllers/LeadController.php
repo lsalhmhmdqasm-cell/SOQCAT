@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Lead;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 class LeadController extends Controller
@@ -22,11 +22,12 @@ class LeadController extends Controller
             $q = $request->q;
             $query->where(function ($w) use ($q) {
                 $w->where('shop_name', 'like', '%'.$q.'%')
-                  ->orWhere('phone', 'like', '%'.$q.'%');
+                    ->orWhere('phone', 'like', '%'.$q.'%');
             });
         }
         $perPage = (int) ($request->per_page ?? 10);
         $perPage = $perPage > 50 ? 50 : ($perPage < 5 ? 10 : $perPage);
+
         return response()->json($query->paginate($perPage));
     }
 
@@ -105,6 +106,7 @@ class LeadController extends Controller
             $lead->notes = $validated['notes'] ?? $lead->notes;
         }
         $lead->save();
+
         return response()->json($lead);
     }
 }

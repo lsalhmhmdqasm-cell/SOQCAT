@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Shop;
 use App\Models\Product;
-use App\Models\User;
 use App\Models\Review;
+use App\Models\Shop;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DemoDataSeeder extends Seeder
@@ -27,7 +27,7 @@ class DemoDataSeeder extends Seeder
                 for ($i = 0; $i < 3; $i++) {
                     Product::create([
                         'shop_id' => $shop->id,
-                        'name' => 'منتج ' . ($i + 1) . ' - ' . $shop->name,
+                        'name' => 'منتج '.($i + 1).' - '.$shop->name,
                         'price' => rand(10, 100),
                         'description' => 'منتج تجريبي',
                         'image' => null,

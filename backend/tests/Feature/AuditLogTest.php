@@ -3,9 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
-use App\Models\PricingPlan;
 use App\Models\Shop;
-use App\Models\SubscriptionLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,7 +36,7 @@ class AuditLogTest extends TestCase
         // 2. Perform Action (Suspend)
         $admin = User::factory()->create(['role' => 'super_admin']);
         $this->actingAs($admin);
-        
+
         $client->update(['status' => 'suspended']);
 
         // 3. Verify Log
@@ -104,11 +102,11 @@ class AuditLogTest extends TestCase
         $client->update(['status' => 'active']);
 
         $admin = User::factory()->create(['role' => 'super_admin']);
-        
+
         $response = $this->actingAs($admin)
-                         ->getJson("/api/super-admin/clients/{$client->id}/logs");
+            ->getJson("/api/super-admin/clients/{$client->id}/logs");
 
         $response->assertStatus(200)
-                 ->assertJsonCount(2, 'data');
+            ->assertJsonCount(2, 'data');
     }
 }

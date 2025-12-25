@@ -15,4 +15,3 @@ class PlatformSetting extends Model
         'value' => 'array',
     ];
 }
-

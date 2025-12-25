@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\PlatformSetting;
 use App\Models\PricingPlan;
-use App\Models\Shop;
 use App\Models\Review;
+use App\Models\Shop;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -184,6 +184,7 @@ class PlatformLandingController extends Controller
                 'value' => $this->defaultConfig(),
             ]);
         }
+
         return $setting;
     }
 
@@ -265,12 +266,14 @@ class PlatformLandingController extends Controller
         $plans = PricingPlan::where('is_active', true)
             ->orderBy('sort_order')
             ->get(['id', 'name', 'description', 'monthly_price', 'yearly_price', 'lifetime_price', 'features', 'web_enabled', 'android_enabled', 'ios_enabled', 'is_active', 'sort_order']);
+
         return response()->json($plans);
     }
 
     public function partners(Request $request)
     {
         $items = Shop::orderBy('id', 'desc')->limit(6)->pluck('name')->toArray();
+
         return response()->json(['items' => $items]);
     }
 
@@ -280,6 +283,7 @@ class PlatformLandingController extends Controller
         $avgRating = round((float) Review::avg('rating'), 1);
         $avgRatingLabel = $avgRating > 0 ? "{$avgRating}/5" : '—';
         $days = '3–7 أيام';
+
         return response()->json([
             ['icon' => 'users', 'value' => "+{$shops}", 'label' => 'محلات مسجلة'],
             ['icon' => 'timer', 'value' => $days, 'label' => 'متوسط وقت الإطلاق'],
@@ -295,12 +299,14 @@ class PlatformLandingController extends Controller
             ->get();
         $items = $reviews->map(function ($r) {
             $name = $r->product && $r->product->shop ? $r->product->shop->name : ($r->user->name ?? 'عميل');
+
             return [
                 'name' => $name,
                 'text' => (string) ($r->comment ?? ''),
                 'rating' => (int) ($r->rating ?? 0),
             ];
         });
+
         return response()->json(['items' => $items]);
     }
 }

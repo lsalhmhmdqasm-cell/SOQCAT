@@ -20,7 +20,7 @@ class LeadTest extends TestCase
             'shop_name' => 'متجر النسيم',
             'phone' => '777000000', // 9 digits starting with 7
             'plan_type' => 'premium',
-            'honeypot' => ''
+            'honeypot' => '',
         ];
 
         $res = $this->postJson('/api/leads', $payload);
@@ -71,4 +71,3 @@ class LeadTest extends TestCase
         $res->assertStatus(422);
     }
 }
-

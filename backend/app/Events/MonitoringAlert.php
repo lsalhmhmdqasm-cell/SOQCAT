@@ -34,4 +34,3 @@ class MonitoringAlert implements ShouldBroadcast
         return $this->payload;
     }
 }
-

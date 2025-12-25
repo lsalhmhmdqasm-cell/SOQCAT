@@ -4,9 +4,6 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SuperAdminOnboardShopRequest;
-use App\Jobs\ProvisionAndroidApp;
-use App\Jobs\ProvisionIOSApp;
-use App\Jobs\ProvisionWebShop;
 use App\Models\Client;
 use App\Models\PricingPlan;
 use App\Models\Shop;
@@ -59,7 +56,7 @@ class OnboardingController extends Controller
                 'owner_name' => $admin->name,
                 'email' => $admin->email,
                 'phone' => $admin->phone ?? '000000000',
-                'domain' => 'shop-' . $shop->id . '.qatshop.com', // Default domain
+                'domain' => 'shop-'.$shop->id.'.qatshop.com', // Default domain
                 'subscription_type' => 'monthly', // Default, can be updated later or passed in request
                 'status' => 'active',
                 'subscription_start' => now(),

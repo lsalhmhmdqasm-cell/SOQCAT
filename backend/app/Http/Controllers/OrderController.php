@@ -96,10 +96,10 @@ class OrderController extends Controller
     public function track(Request $request, $trackingNumber)
     {
         $shop = $request->shop;
-        
+
         $query = Order::where('tracking_number', $trackingNumber)
             ->with(['statusHistory.updatedBy', 'deliveryPerson', 'shop']);
-            
+
         // If accessed via shop domain, restrict to that shop
         if ($shop) {
             $query->where('shop_id', $shop->id);

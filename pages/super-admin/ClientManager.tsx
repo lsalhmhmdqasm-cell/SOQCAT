@@ -14,7 +14,7 @@ interface Client {
     domain: string;
     status: 'active' | 'suspended' | 'trial' | 'expired';
     subscription_type: string;
-    subscription_end: string;
+    subscription_end?: string | null;
 }
 
 export const ClientManager = () => {
@@ -254,7 +254,12 @@ export const ClientManager = () => {
                                         <td className="px-6 py-4">{getStatusBadge(client.status)}</td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-gray-900">{client.subscription_type}</div>
-                                            <div className="text-xs text-gray-500">حتى: {client.subscription_end}</div>
+                                            <div className="text-xs text-gray-500">
+                                                حتى:{' '}
+                                                {client.subscription_type === 'lifetime'
+                                                    ? 'مدى الحياة'
+                                                    : (client.subscription_end || 'غير محدد')}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex gap-2">
@@ -277,8 +282,9 @@ export const ClientManager = () => {
                                                 )}
                                                 <button
                                                     onClick={() => handleExtend(client.id)}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                    title="تمديد"
+                                                    className={`text-blue-600 hover:text-blue-800 ${client.subscription_type === 'lifetime' ? 'opacity-40 cursor-not-allowed hover:text-blue-600' : ''}`}
+                                                    title={client.subscription_type === 'lifetime' ? 'مدى الحياة لا يحتاج تمديد' : 'تمديد'}
+                                                    disabled={client.subscription_type === 'lifetime'}
                                                 >
                                                     <Calendar size={18} />
                                                 </button>

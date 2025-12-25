@@ -18,6 +18,9 @@ class Client extends Model
         'secondary_color',
         'status',
         'subscription_type',
+        'license_type',
+        'paid_amount',
+        'payment_date',
         'subscription_start',
         'subscription_end',
     ];
@@ -25,6 +28,7 @@ class Client extends Model
     protected $casts = [
         'subscription_start' => 'datetime',
         'subscription_end' => 'datetime',
+        'payment_date' => 'date',
     ];
 
     public function subscription()
@@ -49,13 +53,23 @@ class Client extends Model
 
     public function isActive()
     {
-        return $this->status === 'active' &&
-               $this->subscription_end &&
-               $this->subscription_end->isFuture();
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        if ($this->license_type === 'lifetime') {
+            return true;
+        }
+
+        return $this->subscription_end && $this->subscription_end->isFuture();
     }
 
     public function isExpired()
     {
+        if ($this->license_type === 'lifetime') {
+            return false;
+        }
+
         return $this->subscription_end && $this->subscription_end->isPast();
     }
 }

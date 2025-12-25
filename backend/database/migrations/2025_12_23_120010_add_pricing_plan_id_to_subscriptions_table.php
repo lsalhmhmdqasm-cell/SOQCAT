@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('subscriptions', function (Blueprint $table) {
-            if (!Schema::hasColumn('subscriptions', 'pricing_plan_id')) {
+            if (! Schema::hasColumn('subscriptions', 'pricing_plan_id')) {
                 $table->foreignId('pricing_plan_id')->nullable()->after('client_id')->constrained('pricing_plans')->nullOnDelete();
                 $table->index('pricing_plan_id');
             }
@@ -37,4 +37,3 @@ return new class extends Migration
         });
     }
 };
-

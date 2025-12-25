@@ -16,16 +16,16 @@ class IdentifyTenant
     {
         $host = $request->getHost();
         $host = preg_replace('/:\d+$/', '', $host);
-        
+
         $shop = null;
 
         // 1. Priority: Find Shop by Domain (Production Standard)
-        $shop = Shop::whereHas('client', function($q) use ($host) {
+        $shop = Shop::whereHas('client', function ($q) use ($host) {
             $q->where('domain', $host);
         })->first();
-             
+
         // 2. Fallback: Parse Subdomain (e.g. shop-1.qatshop.com)
-        if (!$shop) {
+        if (! $shop) {
             $parts = explode('.', $host);
             if (count($parts) > 0) {
                 $subdomain = $parts[0];
@@ -40,14 +40,14 @@ class IdentifyTenant
 
         // 3. Last Resort: Check X-Shop-Id Header (Mobile Apps & Temporary Render URLs)
         // We allow this in Production now to support mobile apps and direct ID binding.
-        if (!$shop && $request->hasHeader('X-Shop-Id')) {
+        if (! $shop && $request->hasHeader('X-Shop-Id')) {
             $shopId = $request->header('X-Shop-Id');
             if (is_numeric($shopId)) {
                 $shop = Shop::find($shopId);
             }
         }
 
-        if (!$shop) {
+        if (! $shop) {
             $shopId = $request->query('shop_id');
             if (is_numeric($shopId)) {
                 $shop = Shop::find((int) $shopId);

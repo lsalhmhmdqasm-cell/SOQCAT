@@ -32,4 +32,3 @@ class PaymentMethodPolicy
         return $user->isSuperAdmin() || ($user->isShopAdmin() && $method->shop_id === $user->shop_id);
     }
 }
-

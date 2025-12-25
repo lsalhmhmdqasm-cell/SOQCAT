@@ -16,6 +16,7 @@ class SuperAdminSeeder extends Seeder
         // Check if super admin already exists
         if (User::where('email', 'admin@qatshop.com')->exists()) {
             $this->command->info('Super Admin already exists.');
+
             return;
         }
 

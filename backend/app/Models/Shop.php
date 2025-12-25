@@ -50,6 +50,18 @@ class Shop extends Model
             }
         });
 
+        static::saved(function (Shop $shop) {
+            if ($shop->wasChanged('enable_web') && $shop->enable_web && $shop->web_status === 'pending') {
+                ProvisionWebShop::dispatch($shop->id)->afterCommit();
+            }
+            if ($shop->wasChanged('enable_android') && $shop->enable_android && $shop->android_status === 'pending') {
+                ProvisionAndroidApp::dispatch($shop->id)->afterCommit();
+            }
+            if ($shop->wasChanged('enable_ios') && $shop->enable_ios && $shop->ios_status === 'pending') {
+                ProvisionIOSApp::dispatch($shop->id)->afterCommit();
+            }
+        });
+
         static::saving(function (Shop $shop) {
             if ($shop->isDirty('enable_web')) {
                 $shop->web_status = $shop->enable_web

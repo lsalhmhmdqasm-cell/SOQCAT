@@ -24,7 +24,7 @@ class AuthController extends Controller
         $shopId = (int) $shopId;
         $shop = Shop::findOrFail($shopId);
         if ($shop->status !== 'active') {
-            return response()->json(['message' => 'Your shop is currently ' . $shop->status], 403);
+            return response()->json(['message' => 'Your shop is currently '.$shop->status], 403);
         }
 
         $validated = $request->validate([
@@ -56,28 +56,29 @@ class AuthController extends Controller
     {
         // Security Fix: Use IdentifyTenant middleware resolved shop
         $shop = $request->shop;
-        $shopId = $shop ? $shop->id : (is_numeric($request->input('shop_id')) ? (int)$request->input('shop_id') : null);
+        $shopId = $shop ? $shop->id : (is_numeric($request->input('shop_id')) ? (int) $request->input('shop_id') : null);
 
         $validated = $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
-        
+
         $user = User::where('email', $validated['email'])->first();
-        
+
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json(['message' => 'Invalid login details'], 401);
         }
-        
+
         // Strict Isolation: User must belong to this shop (unless Super Admin)
         if ($shopId && ! $user->isSuperAdmin()) {
-             if ((int)$user->shop_id !== $shopId) {
-                  // User exists but belongs to another shop -> Unauthorized for this domain
-                  return response()->json(['message' => 'Unauthorized for this shop'], 403);
-             }
+            if ((int) $user->shop_id !== $shopId) {
+                // User exists but belongs to another shop -> Unauthorized for this domain
+                return response()->json(['message' => 'Unauthorized for this shop'], 403);
+            }
         }
-        
+
         $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json(['data' => $user, 'access_token' => $token, 'token_type' => 'Bearer']);
     }
 
@@ -115,6 +116,7 @@ class AuthController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
+
         return response()->json(['message' => 'Logged out']);
     }
 }

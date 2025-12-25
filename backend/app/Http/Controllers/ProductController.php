@@ -16,16 +16,16 @@ class ProductController extends Controller
 
         // 2. Fallback: Check explicit params (Only for testing/super-admin, can be removed for strict security)
         if (! $shop) {
-             $shopId = $request->input('shop_id') ?? $request->header('X-Shop-Id');
-             if (is_numeric($shopId)) {
-                 $shop = \App\Models\Shop::find($shopId);
-             }
+            $shopId = $request->input('shop_id') ?? $request->header('X-Shop-Id');
+            if (is_numeric($shopId)) {
+                $shop = \App\Models\Shop::find($shopId);
+            }
         }
 
         if (! $shop) {
             return response()->json(['message' => 'Shop context required'], 422);
         }
-        
+
         $shopId = $shop->id;
 
         $query = Product::where('is_active', true)->where('shop_id', $shopId);
@@ -93,7 +93,7 @@ class ProductController extends Controller
     {
         $shopId = $request->user()->shop_id;
         $product = Product::where('shop_id', $shopId)->findOrFail($id);
-        
+
         $this->authorize('update', $product);
 
         $validated = $request->validate([
@@ -123,9 +123,9 @@ class ProductController extends Controller
     {
         $shopId = $request->user()->shop_id;
         $product = Product::where('shop_id', $shopId)->findOrFail($id);
-        
+
         $this->authorize('delete', $product);
-        
+
         $product->delete();
 
         Log::info('admin_product_deleted', [

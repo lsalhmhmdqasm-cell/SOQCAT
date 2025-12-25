@@ -57,7 +57,7 @@ class EnsureShopServiceEnabled
 
                 // Check Global Shop Status (from Client Subscription)
                 if ($shop->status !== 'active') {
-                    return response()->json(['message' => 'Your shop is currently ' . $shop->status], 403);
+                    return response()->json(['message' => 'Your shop is currently '.$shop->status], 403);
                 }
 
                 if (! $enabled || ! $active) {
