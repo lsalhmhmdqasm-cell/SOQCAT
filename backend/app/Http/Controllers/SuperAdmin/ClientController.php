@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\PricingPlan;
 use App\Models\Subscription;
 use App\Models\User;
+use Database\Seeders\PricingPlanSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -237,6 +238,17 @@ class ClientController extends Controller
     {
         if ($request->user()->role !== 'super_admin') {
             return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (! Schema::hasTable('pricing_plans')) {
+            return response()->json([]);
+        }
+
+        try {
+            if (PricingPlan::count() === 0) {
+                (new PricingPlanSeeder)->run();
+            }
+        } catch (\Throwable $e) {
         }
 
         return response()->json(PricingPlan::where('is_active', true)->orderBy('sort_order')->get());

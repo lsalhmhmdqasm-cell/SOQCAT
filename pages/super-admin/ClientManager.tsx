@@ -79,7 +79,17 @@ export const ClientManager = () => {
     const fetchPlans = async () => {
         try {
             const res = await api.get('/super_admin/pricing-plans');
-            setPlans(res.data || []);
+            const list = res.data || [];
+            setPlans(list);
+            setCreateForm((prev) => {
+                if (prev.pricing_plan_id || !Array.isArray(list) || list.length === 0) return prev;
+                const first = list[0];
+                const price =
+                    prev.subscription_type === 'monthly'
+                        ? (first?.monthly_price || 0)
+                        : (prev.subscription_type === 'yearly' ? (first?.yearly_price || 0) : (first?.lifetime_price || 0));
+                return { ...prev, pricing_plan_id: String(first.id), price };
+            });
         } catch {}
     };
 
@@ -373,6 +383,10 @@ export const ClientManager = () => {
                         <div className="flex gap-2 mt-6">
                             <button
                                 onClick={async () => {
+                                    if (!createForm.pricing_plan_id) {
+                                        showToast('يرجى اختيار الباقة أولاً', 'warning');
+                                        return;
+                                    }
                                     try {
                                         const res = await api.post('/super-admin/clients', createForm);
                                         setShowModal(false);
