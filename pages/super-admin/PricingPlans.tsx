@@ -9,8 +9,17 @@ interface Plan {
   name: string;
   description?: string;
   monthly_price?: number;
+  monthly_price_web?: number;
+  monthly_price_android?: number;
+  monthly_price_ios?: number;
   yearly_price?: number;
+  yearly_price_web?: number;
+  yearly_price_android?: number;
+  yearly_price_ios?: number;
   lifetime_price?: number;
+  lifetime_price_web?: number;
+  lifetime_price_android?: number;
+  lifetime_price_ios?: number;
   features: Record<string, any>;
   web_enabled?: boolean;
   android_enabled?: boolean;
@@ -27,9 +36,93 @@ export const PricingPlans: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [busyById, setBusyById] = useState<Record<number, 'toggling' | 'deleting' | 'saving'>>({});
   const [error, setError] = useState<string | null>(null);
-  const [createForm, setCreateForm] = useState<{ name: string; description?: string; monthly_price?: string; yearly_price?: string; lifetime_price?: string; featuresRaw: string; sort_order?: string; is_active: boolean; web_enabled: boolean; android_enabled: boolean; ios_enabled: boolean }>({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '{ }', sort_order: '0', is_active: true, web_enabled: true, android_enabled: true, ios_enabled: true });
+  const [createForm, setCreateForm] = useState<{
+    name: string;
+    description?: string;
+    monthly_price?: string;
+    monthly_price_web?: string;
+    monthly_price_android?: string;
+    monthly_price_ios?: string;
+    yearly_price?: string;
+    yearly_price_web?: string;
+    yearly_price_android?: string;
+    yearly_price_ios?: string;
+    lifetime_price?: string;
+    lifetime_price_web?: string;
+    lifetime_price_android?: string;
+    lifetime_price_ios?: string;
+    featuresRaw: string;
+    sort_order?: string;
+    is_active: boolean;
+    web_enabled: boolean;
+    android_enabled: boolean;
+    ios_enabled: boolean;
+  }>({
+    name: '',
+    description: '',
+    monthly_price: '',
+    monthly_price_web: '',
+    monthly_price_android: '',
+    monthly_price_ios: '',
+    yearly_price: '',
+    yearly_price_web: '',
+    yearly_price_android: '',
+    yearly_price_ios: '',
+    lifetime_price: '',
+    lifetime_price_web: '',
+    lifetime_price_android: '',
+    lifetime_price_ios: '',
+    featuresRaw: '{ }',
+    sort_order: '0',
+    is_active: true,
+    web_enabled: true,
+    android_enabled: true,
+    ios_enabled: true,
+  });
   const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ name?: string; description?: string; monthly_price?: string; yearly_price?: string; lifetime_price?: string; featuresRaw?: string; sort_order?: string; is_active?: boolean; web_enabled?: boolean; android_enabled?: boolean; ios_enabled?: boolean }>({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
+  const [editForm, setEditForm] = useState<{
+    name?: string;
+    description?: string;
+    monthly_price?: string;
+    monthly_price_web?: string;
+    monthly_price_android?: string;
+    monthly_price_ios?: string;
+    yearly_price?: string;
+    yearly_price_web?: string;
+    yearly_price_android?: string;
+    yearly_price_ios?: string;
+    lifetime_price?: string;
+    lifetime_price_web?: string;
+    lifetime_price_android?: string;
+    lifetime_price_ios?: string;
+    featuresRaw?: string;
+    sort_order?: string;
+    is_active?: boolean;
+    web_enabled?: boolean;
+    android_enabled?: boolean;
+    ios_enabled?: boolean;
+  }>({
+    name: '',
+    description: '',
+    monthly_price: '',
+    monthly_price_web: '',
+    monthly_price_android: '',
+    monthly_price_ios: '',
+    yearly_price: '',
+    yearly_price_web: '',
+    yearly_price_android: '',
+    yearly_price_ios: '',
+    lifetime_price: '',
+    lifetime_price_web: '',
+    lifetime_price_android: '',
+    lifetime_price_ios: '',
+    featuresRaw: '',
+    sort_order: undefined,
+    is_active: undefined,
+    web_enabled: undefined,
+    android_enabled: undefined,
+    ios_enabled: undefined,
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,8 +171,17 @@ export const PricingPlans: React.FC = () => {
         name: createForm.name,
         description: createForm.description || null,
         monthly_price: createForm.monthly_price ? Number(createForm.monthly_price) : null,
+        monthly_price_web: createForm.monthly_price_web ? Number(createForm.monthly_price_web) : null,
+        monthly_price_android: createForm.monthly_price_android ? Number(createForm.monthly_price_android) : null,
+        monthly_price_ios: createForm.monthly_price_ios ? Number(createForm.monthly_price_ios) : null,
         yearly_price: createForm.yearly_price ? Number(createForm.yearly_price) : null,
+        yearly_price_web: createForm.yearly_price_web ? Number(createForm.yearly_price_web) : null,
+        yearly_price_android: createForm.yearly_price_android ? Number(createForm.yearly_price_android) : null,
+        yearly_price_ios: createForm.yearly_price_ios ? Number(createForm.yearly_price_ios) : null,
         lifetime_price: createForm.lifetime_price ? Number(createForm.lifetime_price) : null,
+        lifetime_price_web: createForm.lifetime_price_web ? Number(createForm.lifetime_price_web) : null,
+        lifetime_price_android: createForm.lifetime_price_android ? Number(createForm.lifetime_price_android) : null,
+        lifetime_price_ios: createForm.lifetime_price_ios ? Number(createForm.lifetime_price_ios) : null,
         features,
         sort_order: createForm.sort_order ? Number(createForm.sort_order) : 0,
         is_active: createForm.is_active,
@@ -87,7 +189,28 @@ export const PricingPlans: React.FC = () => {
         android_enabled: createForm.android_enabled,
         ios_enabled: createForm.ios_enabled,
       });
-      setCreateForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '{ }', sort_order: '0', is_active: true, web_enabled: true, android_enabled: true, ios_enabled: true });
+      setCreateForm({
+        name: '',
+        description: '',
+        monthly_price: '',
+        monthly_price_web: '',
+        monthly_price_android: '',
+        monthly_price_ios: '',
+        yearly_price: '',
+        yearly_price_web: '',
+        yearly_price_android: '',
+        yearly_price_ios: '',
+        lifetime_price: '',
+        lifetime_price_web: '',
+        lifetime_price_android: '',
+        lifetime_price_ios: '',
+        featuresRaw: '{ }',
+        sort_order: '0',
+        is_active: true,
+        web_enabled: true,
+        android_enabled: true,
+        ios_enabled: true,
+      });
       await reload();
     } catch (e: any) {
       const msg = e?.response?.data?.message;
@@ -108,8 +231,17 @@ export const PricingPlans: React.FC = () => {
     if (editForm.name !== undefined) payload.name = editForm.name;
     if (editForm.description !== undefined) payload.description = editForm.description;
     if (editForm.monthly_price !== undefined && editForm.monthly_price !== '') payload.monthly_price = Number(editForm.monthly_price);
+    if (editForm.monthly_price_web !== undefined && editForm.monthly_price_web !== '') payload.monthly_price_web = Number(editForm.monthly_price_web);
+    if (editForm.monthly_price_android !== undefined && editForm.monthly_price_android !== '') payload.monthly_price_android = Number(editForm.monthly_price_android);
+    if (editForm.monthly_price_ios !== undefined && editForm.monthly_price_ios !== '') payload.monthly_price_ios = Number(editForm.monthly_price_ios);
     if (editForm.yearly_price !== undefined && editForm.yearly_price !== '') payload.yearly_price = Number(editForm.yearly_price);
+    if (editForm.yearly_price_web !== undefined && editForm.yearly_price_web !== '') payload.yearly_price_web = Number(editForm.yearly_price_web);
+    if (editForm.yearly_price_android !== undefined && editForm.yearly_price_android !== '') payload.yearly_price_android = Number(editForm.yearly_price_android);
+    if (editForm.yearly_price_ios !== undefined && editForm.yearly_price_ios !== '') payload.yearly_price_ios = Number(editForm.yearly_price_ios);
     if (editForm.lifetime_price !== undefined && editForm.lifetime_price !== '') payload.lifetime_price = Number(editForm.lifetime_price);
+    if (editForm.lifetime_price_web !== undefined && editForm.lifetime_price_web !== '') payload.lifetime_price_web = Number(editForm.lifetime_price_web);
+    if (editForm.lifetime_price_android !== undefined && editForm.lifetime_price_android !== '') payload.lifetime_price_android = Number(editForm.lifetime_price_android);
+    if (editForm.lifetime_price_ios !== undefined && editForm.lifetime_price_ios !== '') payload.lifetime_price_ios = Number(editForm.lifetime_price_ios);
     if (editForm.featuresRaw !== undefined) {
       try {
         const features = JSON.parse(editForm.featuresRaw || '{}');
@@ -130,7 +262,28 @@ export const PricingPlans: React.FC = () => {
       setBusyById((prev) => ({ ...prev, [id]: 'saving' }));
       await api.put(`/super_admin/pricing-plans/${id}`, payload);
       setEditId(null);
-      setEditForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined });
+      setEditForm({
+        name: '',
+        description: '',
+        monthly_price: '',
+        monthly_price_web: '',
+        monthly_price_android: '',
+        monthly_price_ios: '',
+        yearly_price: '',
+        yearly_price_web: '',
+        yearly_price_android: '',
+        yearly_price_ios: '',
+        lifetime_price: '',
+        lifetime_price_web: '',
+        lifetime_price_android: '',
+        lifetime_price_ios: '',
+        featuresRaw: '',
+        sort_order: undefined,
+        is_active: undefined,
+        web_enabled: undefined,
+        android_enabled: undefined,
+        ios_enabled: undefined,
+      });
       await reload();
     } catch (e: any) {
       const msg = e?.response?.data?.message;
@@ -196,6 +349,27 @@ export const PricingPlans: React.FC = () => {
     return p.lifetime_price ?? null;
   };
 
+  const perPlatformPrices = (p: Plan) => {
+    const key = cycle === 'monthly' ? 'monthly' : cycle === 'yearly' ? 'yearly' : 'lifetime';
+    const web = (p as any)[`${key}_price_web`] ?? (key === 'monthly' ? p.monthly_price : key === 'yearly' ? p.yearly_price : p.lifetime_price);
+    const android = (p as any)[`${key}_price_android`];
+    const ios = (p as any)[`${key}_price_ios`];
+    return {
+      web: typeof web === 'number' ? web : null,
+      android: typeof android === 'number' ? android : null,
+      ios: typeof ios === 'number' ? ios : null,
+    };
+  };
+
+  const totalForCycle = (p: Plan) => {
+    const prices = perPlatformPrices(p);
+    let total = 0;
+    if (p.web_enabled && prices.web != null) total += prices.web;
+    if (p.android_enabled && prices.android != null) total += prices.android;
+    if (p.ios_enabled && prices.ios != null) total += prices.ios;
+    return total > 0 ? total : (priceForCycle(p) ?? null);
+  };
+
   const yearlySavingsPct = (p: Plan) => {
     if (!p.monthly_price || !p.yearly_price) return 0;
     const yearAsMonthly = p.monthly_price * 12;
@@ -244,6 +418,48 @@ export const PricingPlans: React.FC = () => {
             <div>
               <label className="text-xs text-gray-600">الترتيب</label>
               <input value={createForm.sort_order} onChange={(e) => setCreateForm({ ...createForm, sort_order: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-gray-600">شهري Web</label>
+              <input value={createForm.monthly_price_web} onChange={(e) => setCreateForm({ ...createForm, monthly_price_web: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">شهري Android</label>
+              <input value={createForm.monthly_price_android} onChange={(e) => setCreateForm({ ...createForm, monthly_price_android: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">شهري iOS</label>
+              <input value={createForm.monthly_price_ios} onChange={(e) => setCreateForm({ ...createForm, monthly_price_ios: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-gray-600">سنوي Web</label>
+              <input value={createForm.yearly_price_web} onChange={(e) => setCreateForm({ ...createForm, yearly_price_web: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">سنوي Android</label>
+              <input value={createForm.yearly_price_android} onChange={(e) => setCreateForm({ ...createForm, yearly_price_android: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">سنوي iOS</label>
+              <input value={createForm.yearly_price_ios} onChange={(e) => setCreateForm({ ...createForm, yearly_price_ios: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label className="text-xs text-gray-600">مدى الحياة Web</label>
+              <input value={createForm.lifetime_price_web} onChange={(e) => setCreateForm({ ...createForm, lifetime_price_web: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">مدى الحياة Android</label>
+              <input value={createForm.lifetime_price_android} onChange={(e) => setCreateForm({ ...createForm, lifetime_price_android: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">مدى الحياة iOS</label>
+              <input value={createForm.lifetime_price_ios} onChange={(e) => setCreateForm({ ...createForm, lifetime_price_ios: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
@@ -327,6 +543,8 @@ export const PricingPlans: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredPlans.map((p) => {
               const price = priceForCycle(p);
+              const total = totalForCycle(p);
+              const pp = perPlatformPrices(p);
               const busy = busyById[p.id];
               const badgeIcon =
                 p.name.toLowerCase() === 'basic' ? <Package size={18} /> :
@@ -349,13 +567,16 @@ export const PricingPlans: React.FC = () => {
                   <div className="mb-4">
                     <div className="flex items-end gap-2">
                       <div className={`text-3xl font-extrabold ${p.name.toLowerCase() === 'pro' ? 'text-white' : 'text-gray-900'}`}>
-                        {price ? `${price}` : '—'}
+                        {total ? `${total}` : '—'}
                         {(cycle === 'monthly' || cycle === 'yearly') && <span className={`text-sm font-normal ms-1 ${p.name.toLowerCase() === 'pro' ? 'text-green-200' : 'text-gray-500'}`}>{cycle === 'monthly' ? '/ شهرياً' : '/ سنوياً'}</span>}
                       </div>
                       {cycle === 'yearly' && yearlySavingsPct(p) > 0 && (
                         <span className={`text-xs font-bold ${p.name.toLowerCase() === 'pro' ? 'text-white' : 'text-yellow-600'}`}>وفر {yearlySavingsPct(p)}%</span>
                       )}
                     </div>
+                  </div>
+                  <div className={`text-xs mb-4 ${p.name.toLowerCase() === 'pro' ? 'text-green-200' : 'text-gray-500'}`}>
+                    {p.web_enabled ? `Web: ${pp.web ?? '—'}` : 'Web: —'} | {p.android_enabled ? `Android: ${pp.android ?? '—'}` : 'Android: —'} | {p.ios_enabled ? `iOS: ${pp.ios ?? '—'}` : 'iOS: —'}
                   </div>
                   <ul className={`space-y-2 mb-6 text-sm ${p.name.toLowerCase() === 'pro' ? 'text-green-50' : 'text-gray-700'}`}>
                     {Object.entries(p.features || {}).slice(0, 8).map(([k, v], idx) => (
@@ -383,7 +604,7 @@ export const PricingPlans: React.FC = () => {
                       <DollarSign size={16} />
                       تبديل الدورة
                     </Button>
-                    <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(p.id); setEditForm({ name: p.name || '', description: p.description || '', monthly_price: String(p.monthly_price ?? ''), yearly_price: String(p.yearly_price ?? ''), lifetime_price: String(p.lifetime_price ?? ''), featuresRaw: JSON.stringify(p.features || {}, null, 2), sort_order: String(p.sort_order ?? ''), is_active: p.is_active, web_enabled: !!p.web_enabled, android_enabled: !!p.android_enabled, ios_enabled: !!p.ios_enabled }); }} disabled={!!busy}>
+                    <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(p.id); setEditForm({ name: p.name || '', description: p.description || '', monthly_price: String(p.monthly_price ?? ''), monthly_price_web: String(p.monthly_price_web ?? ''), monthly_price_android: String(p.monthly_price_android ?? ''), monthly_price_ios: String(p.monthly_price_ios ?? ''), yearly_price: String(p.yearly_price ?? ''), yearly_price_web: String(p.yearly_price_web ?? ''), yearly_price_android: String(p.yearly_price_android ?? ''), yearly_price_ios: String(p.yearly_price_ios ?? ''), lifetime_price: String(p.lifetime_price ?? ''), lifetime_price_web: String(p.lifetime_price_web ?? ''), lifetime_price_android: String(p.lifetime_price_android ?? ''), lifetime_price_ios: String(p.lifetime_price_ios ?? ''), featuresRaw: JSON.stringify(p.features || {}, null, 2), sort_order: String(p.sort_order ?? ''), is_active: p.is_active, web_enabled: !!p.web_enabled, android_enabled: !!p.android_enabled, ios_enabled: !!p.ios_enabled }); }} disabled={!!busy}>
                       تعديل
                     </Button>
                     <Button variant="outline" className="border-gray-300" onClick={() => handleToggle(p.id)} disabled={!!busy}>
@@ -421,6 +642,20 @@ export const PricingPlans: React.FC = () => {
                           <input value={editForm.sort_order ?? ''} onChange={(e) => setEditForm({ ...editForm, sort_order: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
                         </div>
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
+                        <div>
+                          <label className="text-xs text-gray-600">سعر Web ({cycle === 'monthly' ? 'شهري' : cycle === 'yearly' ? 'سنوي' : 'مدى الحياة'})</label>
+                          <input value={(cycle === 'monthly' ? (editForm.monthly_price_web ?? '') : cycle === 'yearly' ? (editForm.yearly_price_web ?? '') : (editForm.lifetime_price_web ?? ''))} onChange={(e) => setEditForm({ ...editForm, ...(cycle === 'monthly' ? { monthly_price_web: e.target.value } : cycle === 'yearly' ? { yearly_price_web: e.target.value } : { lifetime_price_web: e.target.value }) })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">سعر Android ({cycle === 'monthly' ? 'شهري' : cycle === 'yearly' ? 'سنوي' : 'مدى الحياة'})</label>
+                          <input value={(cycle === 'monthly' ? (editForm.monthly_price_android ?? '') : cycle === 'yearly' ? (editForm.yearly_price_android ?? '') : (editForm.lifetime_price_android ?? ''))} onChange={(e) => setEditForm({ ...editForm, ...(cycle === 'monthly' ? { monthly_price_android: e.target.value } : cycle === 'yearly' ? { yearly_price_android: e.target.value } : { lifetime_price_android: e.target.value }) })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600">سعر iOS ({cycle === 'monthly' ? 'شهري' : cycle === 'yearly' ? 'سنوي' : 'مدى الحياة'})</label>
+                          <input value={(cycle === 'monthly' ? (editForm.monthly_price_ios ?? '') : cycle === 'yearly' ? (editForm.yearly_price_ios ?? '') : (editForm.lifetime_price_ios ?? ''))} onChange={(e) => setEditForm({ ...editForm, ...(cycle === 'monthly' ? { monthly_price_ios: e.target.value } : cycle === 'yearly' ? { yearly_price_ios: e.target.value } : { lifetime_price_ios: e.target.value }) })} className="w-full mt-1 px-3 py-2 border rounded-lg" />
+                        </div>
+                      </div>
                       <div className="mt-3">
                         <label className="text-xs text-gray-600">الميزات JSON</label>
                         <textarea value={editForm.featuresRaw ?? ''} onChange={(e) => setEditForm({ ...editForm, featuresRaw: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg font-mono text-xs" rows={3} />
@@ -441,7 +676,7 @@ export const PricingPlans: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2 mt-3">
                         <Button onClick={() => handleUpdate(p.id)} disabled={busyById[p.id] === 'saving'}>{busyById[p.id] === 'saving' ? 'جاري الحفظ...' : 'حفظ'}</Button>
-                        <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(null); setEditForm({ name: '', description: '', monthly_price: '', yearly_price: '', lifetime_price: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined }); }}>إلغاء</Button>
+                        <Button variant="outline" className="border-gray-300" onClick={() => { setEditId(null); setEditForm({ name: '', description: '', monthly_price: '', monthly_price_web: '', monthly_price_android: '', monthly_price_ios: '', yearly_price: '', yearly_price_web: '', yearly_price_android: '', yearly_price_ios: '', lifetime_price: '', lifetime_price_web: '', lifetime_price_android: '', lifetime_price_ios: '', featuresRaw: '', sort_order: undefined, is_active: undefined, web_enabled: undefined, android_enabled: undefined, ios_enabled: undefined }); }}>إلغاء</Button>
                       </div>
                     </div>
                   )}

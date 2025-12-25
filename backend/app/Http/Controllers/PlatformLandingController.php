@@ -265,7 +265,29 @@ class PlatformLandingController extends Controller
     {
         $plans = PricingPlan::where('is_active', true)
             ->orderBy('sort_order')
-            ->get(['id', 'name', 'description', 'monthly_price', 'yearly_price', 'lifetime_price', 'features', 'web_enabled', 'android_enabled', 'ios_enabled', 'is_active', 'sort_order']);
+            ->get([
+                'id',
+                'name',
+                'description',
+                'monthly_price',
+                'monthly_price_web',
+                'monthly_price_android',
+                'monthly_price_ios',
+                'yearly_price',
+                'yearly_price_web',
+                'yearly_price_android',
+                'yearly_price_ios',
+                'lifetime_price',
+                'lifetime_price_web',
+                'lifetime_price_android',
+                'lifetime_price_ios',
+                'features',
+                'web_enabled',
+                'android_enabled',
+                'ios_enabled',
+                'is_active',
+                'sort_order',
+            ]);
 
         return response()->json($plans);
     }

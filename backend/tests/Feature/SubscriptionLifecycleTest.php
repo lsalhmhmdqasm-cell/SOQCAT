@@ -189,4 +189,263 @@ class SubscriptionLifecycleTest extends TestCase
 
         $res->assertStatus(422);
     }
+
+    public function test_assign_plan_calculates_total_by_selected_services(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        Sanctum::actingAs($admin);
+
+        $shop = Shop::create([
+            'name' => 'Svc Price Shop',
+            'status' => 'active',
+            'enable_web' => false,
+            'enable_android' => false,
+            'enable_ios' => false,
+        ]);
+
+        $client = Client::create([
+            'shop_name' => 'Svc Price Shop',
+            'owner_name' => 'Owner',
+            'email' => 'svcprice@test.com',
+            'phone' => '777111222',
+            'domain' => 'svcprice.qatshop.com',
+            'status' => 'active',
+            'shop_id' => $shop->id,
+            'subscription_type' => 'monthly',
+            'license_type' => 'subscription',
+            'subscription_start' => now(),
+            'subscription_end' => now()->addMonth(),
+        ]);
+
+        $plan = PricingPlan::create([
+            'name' => 'SvcPrice',
+            'description' => 'Test',
+            'features' => ['products' => 10],
+            'web_enabled' => true,
+            'android_enabled' => true,
+            'ios_enabled' => true,
+            'monthly_price_web' => 100,
+            'monthly_price_android' => 40,
+            'monthly_price_ios' => 60,
+            'yearly_price_web' => 1000,
+            'yearly_price_android' => 400,
+            'yearly_price_ios' => 600,
+            'lifetime_price_web' => 5000,
+            'lifetime_price_android' => 2000,
+            'lifetime_price_ios' => 3000,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $services = ['web' => true, 'android' => false, 'ios' => true];
+
+        $res = $this->postJson("/api/super_admin/clients/{$client->id}/assign-plan", [
+            'pricing_plan_id' => $plan->id,
+            'billing_cycle' => 'monthly',
+            'services' => $services,
+        ]);
+
+        $res->assertOk();
+        $sub = \App\Models\Subscription::where('client_id', $client->id)->firstOrFail();
+        $this->assertEquals(160.0, (float) $sub->price);
+
+        $shopFresh = $shop->fresh();
+        $this->assertTrue((bool) $shopFresh->enable_web);
+        $this->assertFalse((bool) $shopFresh->enable_android);
+        $this->assertTrue((bool) $shopFresh->enable_ios);
+
+        $res = $this->postJson("/api/super_admin/clients/{$client->id}/assign-plan", [
+            'pricing_plan_id' => $plan->id,
+            'billing_cycle' => 'yearly',
+            'services' => $services,
+        ]);
+
+        $res->assertOk();
+        $sub = \App\Models\Subscription::where('client_id', $client->id)->firstOrFail();
+        $this->assertEquals(1600.0, (float) $sub->price);
+
+        $res = $this->postJson("/api/super_admin/clients/{$client->id}/assign-plan", [
+            'pricing_plan_id' => $plan->id,
+            'billing_cycle' => 'lifetime',
+            'services' => $services,
+        ]);
+
+        $res->assertOk();
+        $res->assertJsonPath('client.subscription_type', 'lifetime');
+        $res->assertJsonPath('client.license_type', 'lifetime');
+        $res->assertJsonPath('client.subscription.billing_cycle', 'yearly');
+        $res->assertJsonPath('client.subscription.next_billing_date', null);
+
+        $sub = \App\Models\Subscription::where('client_id', $client->id)->firstOrFail();
+        $this->assertEquals(8000.0, (float) $sub->price);
+    }
+
+    public function test_super_admin_store_client_calculates_price_by_selected_services(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        Sanctum::actingAs($admin);
+
+        $plan = PricingPlan::create([
+            'name' => 'StoreSvcPrice',
+            'description' => 'Test',
+            'features' => ['products' => 10],
+            'web_enabled' => true,
+            'android_enabled' => true,
+            'ios_enabled' => true,
+            'monthly_price_web' => 100,
+            'monthly_price_android' => 40,
+            'monthly_price_ios' => 60,
+            'yearly_price_web' => 1000,
+            'yearly_price_android' => 400,
+            'yearly_price_ios' => 600,
+            'lifetime_price_web' => 5000,
+            'lifetime_price_android' => 2000,
+            'lifetime_price_ios' => 3000,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $services = ['web' => true, 'android' => false, 'ios' => true];
+
+        $res = $this->postJson('/api/super-admin/clients', [
+            'shop_name' => 'Store Svc Shop',
+            'owner_name' => 'Owner',
+            'email' => 'storesvc@test.com',
+            'phone' => '777222333',
+            'domain' => 'storesvc.qatshop.com',
+            'subscription_type' => 'yearly',
+            'pricing_plan_id' => $plan->id,
+            'services' => $services,
+        ]);
+
+        $res->assertStatus(201);
+        $clientId = $res->json('client.id');
+        $this->assertNotNull($clientId);
+        $sub = \App\Models\Subscription::where('client_id', $clientId)->firstOrFail();
+        $this->assertEquals(1600.0, (float) $sub->price);
+        $shop = \App\Models\Shop::findOrFail((int) $res->json('shop.id'));
+        $this->assertTrue((bool) $shop->enable_web);
+        $this->assertFalse((bool) $shop->enable_android);
+        $this->assertTrue((bool) $shop->enable_ios);
+
+        $res = $this->postJson('/api/super-admin/clients', [
+            'shop_name' => 'Store Svc Shop Lifetime',
+            'owner_name' => 'Owner',
+            'email' => 'storesvclife@test.com',
+            'phone' => '777222334',
+            'domain' => 'storesvclife.qatshop.com',
+            'subscription_type' => 'lifetime',
+            'pricing_plan_id' => $plan->id,
+            'services' => $services,
+        ]);
+
+        $res->assertStatus(201);
+        $res->assertJsonPath('client.subscription.next_billing_date', null);
+        $res->assertJsonPath('client.license_type', 'lifetime');
+        $clientId = $res->json('client.id');
+        $this->assertNotNull($clientId);
+        $client = \App\Models\Client::findOrFail((int) $clientId);
+        $sub = \App\Models\Subscription::where('client_id', $clientId)->firstOrFail();
+        $this->assertEquals(8000.0, (float) $sub->price);
+        $this->assertEquals(8000.0, (float) $client->paid_amount);
+    }
+
+    public function test_assign_plan_rejects_unavailable_service(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        Sanctum::actingAs($admin);
+
+        $shop = Shop::create([
+            'name' => 'Svc Reject Shop',
+            'status' => 'active',
+            'enable_web' => true,
+            'enable_android' => false,
+            'enable_ios' => false,
+        ]);
+
+        $client = Client::create([
+            'shop_name' => 'Svc Reject Shop',
+            'owner_name' => 'Owner',
+            'email' => 'svcreject@test.com',
+            'phone' => '777333444',
+            'domain' => 'svcreject.qatshop.com',
+            'status' => 'active',
+            'shop_id' => $shop->id,
+            'subscription_type' => 'monthly',
+            'license_type' => 'subscription',
+            'subscription_start' => now(),
+            'subscription_end' => now()->addMonth(),
+        ]);
+
+        $plan = PricingPlan::create([
+            'name' => 'WebOnly',
+            'description' => 'Web only',
+            'features' => ['products' => 10],
+            'web_enabled' => true,
+            'android_enabled' => false,
+            'ios_enabled' => false,
+            'monthly_price_web' => 100,
+            'yearly_price_web' => 1000,
+            'lifetime_price_web' => 5000,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $res = $this->postJson("/api/super_admin/clients/{$client->id}/assign-plan", [
+            'pricing_plan_id' => $plan->id,
+            'billing_cycle' => 'monthly',
+            'services' => ['web' => true, 'android' => true, 'ios' => false],
+        ]);
+
+        $res->assertStatus(422);
+    }
+
+    public function test_assign_plan_requires_price_for_selected_service(): void
+    {
+        $admin = User::factory()->create(['role' => 'super_admin']);
+        Sanctum::actingAs($admin);
+
+        $shop = Shop::create([
+            'name' => 'Svc Missing Price',
+            'status' => 'active',
+            'enable_web' => false,
+            'enable_android' => false,
+            'enable_ios' => false,
+        ]);
+
+        $client = Client::create([
+            'shop_name' => 'Svc Missing Price',
+            'owner_name' => 'Owner',
+            'email' => 'svcmissing@test.com',
+            'phone' => '777555666',
+            'domain' => 'svcmissing.qatshop.com',
+            'status' => 'active',
+            'shop_id' => $shop->id,
+            'subscription_type' => 'monthly',
+            'license_type' => 'subscription',
+            'subscription_start' => now(),
+            'subscription_end' => now()->addMonth(),
+        ]);
+
+        $plan = PricingPlan::create([
+            'name' => 'MissingAndroidPrice',
+            'description' => 'Missing android price',
+            'features' => ['products' => 10],
+            'web_enabled' => true,
+            'android_enabled' => true,
+            'ios_enabled' => false,
+            'monthly_price_web' => 100,
+            'monthly_price_android' => null,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $res = $this->postJson("/api/super_admin/clients/{$client->id}/assign-plan", [
+            'pricing_plan_id' => $plan->id,
+            'billing_cycle' => 'monthly',
+            'services' => ['web' => false, 'android' => true, 'ios' => false],
+        ]);
+
+        $res->assertStatus(422);
+    }
 }

@@ -15,7 +15,29 @@ export const PlatformLanding = () => {
     const [leadPhone, setLeadPhone] = useState('');
     const [leadPlan, setLeadPlan] = useState<'basic' | 'premium' | 'enterprise'>('premium');
     const [config, setConfig] = useState<PlatformLandingConfig | null>(null);
-    const [plans, setPlans] = useState<Array<{ id: number; name: string; description?: string; monthly_price?: number; yearly_price?: number; lifetime_price?: number; features?: Record<string, any>; is_active?: boolean; sort_order?: number }>>([]);
+    const [plans, setPlans] = useState<Array<{
+        id: number;
+        name: string;
+        description?: string;
+        monthly_price?: number;
+        monthly_price_web?: number;
+        monthly_price_android?: number;
+        monthly_price_ios?: number;
+        yearly_price?: number;
+        yearly_price_web?: number;
+        yearly_price_android?: number;
+        yearly_price_ios?: number;
+        lifetime_price?: number;
+        lifetime_price_web?: number;
+        lifetime_price_android?: number;
+        lifetime_price_ios?: number;
+        features?: Record<string, any>;
+        web_enabled?: boolean;
+        android_enabled?: boolean;
+        ios_enabled?: boolean;
+        is_active?: boolean;
+        sort_order?: number;
+    }>>([]);
     const [partnersItems, setPartnersItems] = useState<string[]>([]);
     const [statsData, setStatsData] = useState<Array<{ icon?: string; value: string; label: string }> | null>(null);
     const [testimonialsReal, setTestimonialsReal] = useState<Array<{ name: string; text: string; rating?: number }>>([]);
@@ -118,15 +140,45 @@ export const PlatformLanding = () => {
     const pricingYearlyBadge = config?.pricing?.yearly_badge || 'وفر 20% عند الدفع السنوي';
     const cycleMonthlyLabel = config?.pricing?.cycle_labels?.monthly || 'شهري';
     const cycleYearlyLabel = config?.pricing?.cycle_labels?.yearly || 'سنوي';
+    const getPlatformPrice = (p: any, cycle: 'monthly' | 'yearly' | 'lifetime', platform: 'web' | 'android' | 'ios') => {
+        const key = `${cycle}_price_${platform}`;
+        const v = p?.[key];
+        if (typeof v === 'number') return v;
+        if (platform === 'web') {
+            if (cycle === 'monthly') return typeof p?.monthly_price === 'number' ? p.monthly_price : null;
+            if (cycle === 'yearly') return typeof p?.yearly_price === 'number' ? p.yearly_price : null;
+            if (cycle === 'lifetime') return typeof p?.lifetime_price === 'number' ? p.lifetime_price : null;
+        }
+        return null;
+    };
+    const calcTotal = (p: any, cycle: 'monthly' | 'yearly' | 'lifetime') => {
+        let total = 0;
+        if (p?.web_enabled) {
+            const v = getPlatformPrice(p, cycle, 'web');
+            if (typeof v === 'number') total += v;
+        }
+        if (p?.android_enabled) {
+            const v = getPlatformPrice(p, cycle, 'android');
+            if (typeof v === 'number') total += v;
+        }
+        if (p?.ios_enabled) {
+            const v = getPlatformPrice(p, cycle, 'ios');
+            if (typeof v === 'number') total += v;
+        }
+        return total > 0 ? total : null;
+    };
     const pricingPlans = (plans.length
         ? plans.map(p => ({
             key: (p.name || '').toLowerCase(),
             name: p.name,
-            monthly_price: p.monthly_price != null ? `${p.monthly_price}$` : '—',
-            yearly_price: p.yearly_price != null ? `${p.yearly_price}$` : '—',
-            monthly_suffix: p.monthly_price != null ? '/ شهرياً' : '',
-            yearly_suffix: p.yearly_price != null ? '/ سنوياً' : '',
-            features: Object.keys(p.features || {}),
+            monthly_price: calcTotal(p, 'monthly') != null ? `${calcTotal(p, 'monthly')}$` : '—',
+            yearly_price: calcTotal(p, 'yearly') != null ? `${calcTotal(p, 'yearly')}$` : '—',
+            monthly_suffix: calcTotal(p, 'monthly') != null ? '/ شهرياً' : '',
+            yearly_suffix: calcTotal(p, 'yearly') != null ? '/ سنوياً' : '',
+            features: [
+                `الخدمات: ${(p.web_enabled ? 'Web' : '')}${(p.android_enabled ? (p.web_enabled ? ' + Android' : 'Android') : '')}${(p.ios_enabled ? ((p.web_enabled || p.android_enabled) ? ' + iOS' : 'iOS') : '')}`.trim(),
+                ...Object.keys(p.features || {}),
+            ].filter(Boolean),
             cta: 'طلب الباقة',
             highlight: /pro|premium|advanced/i.test(p.name || ''),
             badge: null,

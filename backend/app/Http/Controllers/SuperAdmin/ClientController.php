@@ -79,6 +79,10 @@ class ClientController extends Controller
             'subscription_type' => 'required|in:monthly,yearly,lifetime',
             'pricing_plan_id' => 'required|integer|exists:pricing_plans,id',
             'admin_password' => 'nullable|string|min:8',
+            'services' => 'nullable|array',
+            'services.web' => 'sometimes|boolean',
+            'services.android' => 'sometimes|boolean',
+            'services.ios' => 'sometimes|boolean',
         ]);
 
         $plan = PricingPlan::findOrFail((int) $validated['pricing_plan_id']);
@@ -88,9 +92,42 @@ class ClientController extends Controller
 
         return DB::transaction(function () use ($validated, $plan, $request) {
             $isLifetime = $validated['subscription_type'] === 'lifetime';
-            $price = $validated['subscription_type'] === 'monthly'
-                ? ($plan->monthly_price ?? 0)
-                : ($validated['subscription_type'] === 'yearly' ? ($plan->yearly_price ?? 0) : ($plan->lifetime_price ?? 0));
+            $requestedServices = $request->input('services');
+            $services = [
+                'web' => (bool) ($plan->web_enabled ?? false),
+                'android' => (bool) ($plan->android_enabled ?? false),
+                'ios' => (bool) ($plan->ios_enabled ?? false),
+            ];
+            if (is_array($requestedServices)) {
+                foreach (['web', 'android', 'ios'] as $k) {
+                    if (array_key_exists($k, $requestedServices)) {
+                        $services[$k] = (bool) $requestedServices[$k];
+                    }
+                }
+            }
+
+            if (! ($services['web'] || $services['android'] || $services['ios'])) {
+                return response()->json(['message' => 'يجب اختيار خدمة واحدة على الأقل'], 422);
+            }
+
+            foreach (['web', 'android', 'ios'] as $platform) {
+                if (($services[$platform] ?? false) && ! $plan->allowsService($platform)) {
+                    return response()->json(['message' => 'الخدمة غير متاحة في هذه الباقة'], 422);
+                }
+            }
+
+            $cycle = $validated['subscription_type'];
+            foreach (['web' => 'الويب', 'android' => 'Android', 'ios' => 'iOS'] as $platform => $label) {
+                if (! ($services[$platform] ?? false)) {
+                    continue;
+                }
+                $svcPrice = $plan->servicePrice($cycle, $platform);
+                if ($svcPrice === null) {
+                    return response()->json(['message' => 'سعر خدمة '.$label.' غير محدد لهذه الدورة'], 422);
+                }
+            }
+
+            $price = $plan->calcTotalPrice($cycle, $services);
 
             $client = Client::create([
                 'shop_name' => $validated['shop_name'],
@@ -112,9 +149,9 @@ class ClientController extends Controller
                 'description' => 'محل مرتبط بالعميل من لوحة المدير العام',
                 'status' => 'active',
                 'delivery_fee' => 1000,
-                'enable_web' => (bool) ($plan->web_enabled ?? false),
-                'enable_android' => (bool) ($plan->android_enabled ?? false),
-                'enable_ios' => (bool) ($plan->ios_enabled ?? false),
+                'enable_web' => (bool) ($services['web'] ?? false),
+                'enable_android' => (bool) ($services['android'] ?? false),
+                'enable_ios' => (bool) ($services['ios'] ?? false),
             ]);
 
             $client->shop_id = $shop->id;
@@ -138,7 +175,17 @@ class ClientController extends Controller
                 'plan_name' => $plan->name,
                 'price' => $price,
                 'billing_cycle' => $isLifetime ? 'yearly' : $validated['subscription_type'],
-                'features' => $plan->features,
+                'features' => array_merge($plan->features ?? [], [
+                    'services' => $services,
+                    'pricing' => [
+                        'cycle' => $cycle,
+                        'platform_prices' => [
+                            'web' => $plan->servicePrice($cycle, 'web'),
+                            'android' => $plan->servicePrice($cycle, 'android'),
+                            'ios' => $plan->servicePrice($cycle, 'ios'),
+                        ],
+                    ],
+                ]),
                 'status' => 'active',
                 'next_billing_date' => $isLifetime ? null : ($validated['subscription_type'] === 'monthly' ? now()->addMonth() : now()->addYear()),
             ]);
@@ -264,8 +311,17 @@ class ClientController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'monthly_price' => 'nullable|numeric|min:0',
+            'monthly_price_web' => 'nullable|numeric|min:0',
+            'monthly_price_android' => 'nullable|numeric|min:0',
+            'monthly_price_ios' => 'nullable|numeric|min:0',
             'yearly_price' => 'nullable|numeric|min:0',
+            'yearly_price_web' => 'nullable|numeric|min:0',
+            'yearly_price_android' => 'nullable|numeric|min:0',
+            'yearly_price_ios' => 'nullable|numeric|min:0',
             'lifetime_price' => 'nullable|numeric|min:0',
+            'lifetime_price_web' => 'nullable|numeric|min:0',
+            'lifetime_price_android' => 'nullable|numeric|min:0',
+            'lifetime_price_ios' => 'nullable|numeric|min:0',
             'features' => 'required|array',
             'web_enabled' => 'required|boolean',
             'android_enabled' => 'required|boolean',
@@ -292,8 +348,17 @@ class ClientController extends Controller
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'monthly_price' => 'nullable|numeric|min:0',
+            'monthly_price_web' => 'nullable|numeric|min:0',
+            'monthly_price_android' => 'nullable|numeric|min:0',
+            'monthly_price_ios' => 'nullable|numeric|min:0',
             'yearly_price' => 'nullable|numeric|min:0',
+            'yearly_price_web' => 'nullable|numeric|min:0',
+            'yearly_price_android' => 'nullable|numeric|min:0',
+            'yearly_price_ios' => 'nullable|numeric|min:0',
             'lifetime_price' => 'nullable|numeric|min:0',
+            'lifetime_price_web' => 'nullable|numeric|min:0',
+            'lifetime_price_android' => 'nullable|numeric|min:0',
+            'lifetime_price_ios' => 'nullable|numeric|min:0',
             'features' => 'nullable|array',
             'web_enabled' => 'sometimes|boolean',
             'android_enabled' => 'sometimes|boolean',
@@ -340,25 +405,69 @@ class ClientController extends Controller
         $request->validate([
             'pricing_plan_id' => 'required|integer|exists:pricing_plans,id',
             'billing_cycle' => 'required|in:monthly,yearly,lifetime',
+            'services' => 'nullable|array',
+            'services.web' => 'sometimes|boolean',
+            'services.android' => 'sometimes|boolean',
+            'services.ios' => 'sometimes|boolean',
         ]);
 
         $client = Client::findOrFail($id);
         $plan = PricingPlan::findOrFail((int) $request->pricing_plan_id);
 
         return DB::transaction(function () use ($client, $plan, $request) {
-            $price = $request->billing_cycle === 'monthly'
-                ? ($plan->monthly_price ?? 0)
-                : ($plan->yearly_price ?? 0);
-            if ($request->billing_cycle === 'lifetime') {
-                $price = $plan->lifetime_price ?? 0;
+            $requestedServices = $request->input('services');
+            $services = [
+                'web' => (bool) ($plan->web_enabled ?? false),
+                'android' => (bool) ($plan->android_enabled ?? false),
+                'ios' => (bool) ($plan->ios_enabled ?? false),
+            ];
+            if (is_array($requestedServices)) {
+                foreach (['web', 'android', 'ios'] as $k) {
+                    if (array_key_exists($k, $requestedServices)) {
+                        $services[$k] = (bool) $requestedServices[$k];
+                    }
+                }
             }
+
+            if (! ($services['web'] || $services['android'] || $services['ios'])) {
+                return response()->json(['message' => 'يجب اختيار خدمة واحدة على الأقل'], 422);
+            }
+
+            foreach (['web', 'android', 'ios'] as $platform) {
+                if (($services[$platform] ?? false) && ! $plan->allowsService($platform)) {
+                    return response()->json(['message' => 'الخدمة غير متاحة في هذه الباقة'], 422);
+                }
+            }
+
+            $cycle = (string) $request->billing_cycle;
+            foreach (['web' => 'الويب', 'android' => 'Android', 'ios' => 'iOS'] as $platform => $label) {
+                if (! ($services[$platform] ?? false)) {
+                    continue;
+                }
+                $svcPrice = $plan->servicePrice($cycle, $platform);
+                if ($svcPrice === null) {
+                    return response()->json(['message' => 'سعر خدمة '.$label.' غير محدد لهذه الدورة'], 422);
+                }
+            }
+
+            $price = $plan->calcTotalPrice($cycle, $services);
 
             $sub = Subscription::firstOrNew(['client_id' => $client->id]);
             $sub->pricing_plan_id = $plan->id;
             $sub->plan_name = $plan->name;
             $sub->price = $price;
             $sub->billing_cycle = $request->billing_cycle === 'lifetime' ? 'yearly' : $request->billing_cycle;
-            $sub->features = $plan->features;
+            $sub->features = array_merge($plan->features ?? [], [
+                'services' => $services,
+                'pricing' => [
+                    'cycle' => $cycle,
+                    'platform_prices' => [
+                        'web' => $plan->servicePrice($cycle, 'web'),
+                        'android' => $plan->servicePrice($cycle, 'android'),
+                        'ios' => $plan->servicePrice($cycle, 'ios'),
+                    ],
+                ],
+            ]);
             $sub->status = 'active';
             $sub->next_billing_date = $request->billing_cycle === 'lifetime'
                 ? null
@@ -371,13 +480,13 @@ class ClientController extends Controller
                 if ($shop) {
                     $updates = [];
                     if (! is_null($plan->web_enabled)) {
-                        $updates['enable_web'] = (bool) $plan->web_enabled;
+                        $updates['enable_web'] = (bool) ($services['web'] ?? false);
                     }
                     if (! is_null($plan->android_enabled)) {
-                        $updates['enable_android'] = (bool) $plan->android_enabled;
+                        $updates['enable_android'] = (bool) ($services['android'] ?? false);
                     }
                     if (! is_null($plan->ios_enabled)) {
-                        $updates['enable_ios'] = (bool) $plan->ios_enabled;
+                        $updates['enable_ios'] = (bool) ($services['ios'] ?? false);
                     }
                     if (! empty($updates)) {
                         $shop->fill($updates);

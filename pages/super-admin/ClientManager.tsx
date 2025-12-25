@@ -36,10 +36,11 @@ export const ClientManager = () => {
         subscription_type: 'monthly',
         pricing_plan_id: '',
         price: 0,
+        services: { web: true, android: true, ios: true },
         admin_password: ''
     });
     const [assignModal, setAssignModal] = useState<{ open: boolean; clientId: number | null }>({ open: false, clientId: null });
-    const [assignForm, setAssignForm] = useState({ pricing_plan_id: '', billing_cycle: 'monthly' });
+    const [assignForm, setAssignForm] = useState({ pricing_plan_id: '', billing_cycle: 'monthly', services: { web: true, android: true, ios: true } });
     const [extendModal, setExtendModal] = useState<{ open: boolean; clientId: number | null; months: string }>({ open: false, clientId: null, months: '1' });
     const [confirm, setConfirm] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void; isLoading?: boolean }>({
         isOpen: false,
@@ -84,13 +85,36 @@ export const ClientManager = () => {
             setCreateForm((prev) => {
                 if (prev.pricing_plan_id || !Array.isArray(list) || list.length === 0) return prev;
                 const first = list[0];
-                const price =
-                    prev.subscription_type === 'monthly'
-                        ? (first?.monthly_price || 0)
-                        : (prev.subscription_type === 'yearly' ? (first?.yearly_price || 0) : (first?.lifetime_price || 0));
-                return { ...prev, pricing_plan_id: String(first.id), price };
+                const allowed = {
+                    web: !!first?.web_enabled,
+                    android: !!first?.android_enabled,
+                    ios: !!first?.ios_enabled,
+                };
+                const services = { ...prev.services, ...allowed };
+                const price = calcPlanTotal(first, prev.subscription_type, services);
+                return { ...prev, pricing_plan_id: String(first.id), price, services };
             });
         } catch {}
+    };
+
+    const getPlatformPrice = (plan: any, cycle: string, platform: 'web' | 'android' | 'ios') => {
+        const key = `${cycle}_price_${platform}`;
+        const v = plan?.[key];
+        if (typeof v === 'number') return v;
+        if (platform === 'web') {
+            if (cycle === 'monthly') return typeof plan?.monthly_price === 'number' ? plan.monthly_price : 0;
+            if (cycle === 'yearly') return typeof plan?.yearly_price === 'number' ? plan.yearly_price : 0;
+            if (cycle === 'lifetime') return typeof plan?.lifetime_price === 'number' ? plan.lifetime_price : 0;
+        }
+        return 0;
+    };
+
+    const calcPlanTotal = (plan: any, cycle: string, services: { web: boolean; android: boolean; ios: boolean }) => {
+        let total = 0;
+        if (services.web) total += getPlatformPrice(plan, cycle, 'web');
+        if (services.android) total += getPlatformPrice(plan, cycle, 'android');
+        if (services.ios) total += getPlatformPrice(plan, cycle, 'ios');
+        return total;
     };
 
     const handleSuspend = async (id: number) => {
@@ -289,7 +313,7 @@ export const ClientManager = () => {
                                                     <Calendar size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => { setAssignModal({ open: true, clientId: client.id }); setAssignForm({ pricing_plan_id: '', billing_cycle: 'monthly' }); }}
+                                                    onClick={() => { setAssignModal({ open: true, clientId: client.id }); setAssignForm({ pricing_plan_id: '', billing_cycle: 'monthly', services: { web: true, android: true, ios: true } }); }}
                                                     className="text-purple-600 hover:text-purple-800"
                                                     title="إسناد باقة"
                                                 >
@@ -359,8 +383,13 @@ export const ClientManager = () => {
                                 <select className="w-full px-4 py-2 border rounded-lg" value={createForm.pricing_plan_id} onChange={(e) => {
                                     const pid = e.target.value;
                                     const plan = plans.find(p => String(p.id) === String(pid));
-                                    let price = createForm.subscription_type === 'monthly' ? (plan?.monthly_price || 0) : (createForm.subscription_type === 'yearly' ? (plan?.yearly_price || 0) : (plan?.lifetime_price || 0));
-                                    setCreateForm({ ...createForm, pricing_plan_id: pid, price });
+                                    const nextServices = {
+                                        web: !!plan?.web_enabled,
+                                        android: !!plan?.android_enabled,
+                                        ios: !!plan?.ios_enabled,
+                                    };
+                                    const price = plan ? calcPlanTotal(plan, createForm.subscription_type, nextServices) : 0;
+                                    setCreateForm({ ...createForm, pricing_plan_id: pid, services: nextServices, price });
                                 }}>
                                     <option value="">اختر الباقة</option>
                                     {plans.map((p) => (
@@ -373,7 +402,7 @@ export const ClientManager = () => {
                                 <select className="w-full px-4 py-2 border rounded-lg" value={createForm.subscription_type} onChange={(e) => {
                                     const sub = e.target.value;
                                     const plan = plans.find(p => String(p.id) === String(createForm.pricing_plan_id));
-                                    let price = sub === 'monthly' ? (plan?.monthly_price || 0) : (sub === 'yearly' ? (plan?.yearly_price || 0) : (plan?.lifetime_price || 0));
+                                    const price = plan ? calcPlanTotal(plan, sub, createForm.services) : 0;
                                     setCreateForm({ ...createForm, subscription_type: sub, price });
                                 }}>
                                     <option value="monthly">شهري</option>
@@ -383,7 +412,54 @@ export const ClientManager = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-2">السعر</label>
-                                <input type="number" className="w-full px-4 py-2 border rounded-lg" value={createForm.price} onChange={(e) => setCreateForm({ ...createForm, price: parseFloat(e.target.value || '0') })} />
+                                <input type="number" className="w-full px-4 py-2 border rounded-lg bg-gray-50" value={createForm.price} readOnly />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-sm font-bold mb-2">الخدمات</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {(() => {
+                                    const plan = plans.find(p => String(p.id) === String(createForm.pricing_plan_id));
+                                    const allowed = {
+                                        web: !!plan?.web_enabled,
+                                        android: !!plan?.android_enabled,
+                                        ios: !!plan?.ios_enabled,
+                                    };
+                                    const setSvc = (k: 'web' | 'android' | 'ios') => {
+                                        if (!allowed[k]) return;
+                                        const nextServices = { ...createForm.services, [k]: !createForm.services[k] };
+                                        const price = plan ? calcPlanTotal(plan, createForm.subscription_type, nextServices) : 0;
+                                        setCreateForm({ ...createForm, services: nextServices, price });
+                                    };
+                                    return (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSvc('web')}
+                                                className={`px-4 py-2 rounded-lg border ${!allowed.web ? 'opacity-40 cursor-not-allowed' : ''} ${createForm.services.web ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                                                disabled={!allowed.web}
+                                            >
+                                                Web
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSvc('android')}
+                                                className={`px-4 py-2 rounded-lg border ${!allowed.android ? 'opacity-40 cursor-not-allowed' : ''} ${createForm.services.android ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                                                disabled={!allowed.android}
+                                            >
+                                                Android
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSvc('ios')}
+                                                className={`px-4 py-2 rounded-lg border ${!allowed.ios ? 'opacity-40 cursor-not-allowed' : ''} ${createForm.services.ios ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}
+                                                disabled={!allowed.ios}
+                                            >
+                                                iOS
+                                            </button>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                         <div className="flex gap-2 mt-6">
@@ -394,9 +470,12 @@ export const ClientManager = () => {
                                         return;
                                     }
                                     try {
-                                        const res = await api.post('/super-admin/clients', createForm);
+                                        const res = await api.post('/super-admin/clients', {
+                                            ...createForm,
+                                            services: createForm.services,
+                                        });
                                         setShowModal(false);
-                                        setCreateForm({ shop_name: '', owner_name: '', email: '', phone: '', domain: '', subscription_type: 'monthly', pricing_plan_id: '', price: 0, admin_password: '' });
+                                        setCreateForm({ shop_name: '', owner_name: '', email: '', phone: '', domain: '', subscription_type: 'monthly', pricing_plan_id: '', price: 0, services: { web: true, android: true, ios: true }, admin_password: '' });
                                         fetchClients();
                                         const admin = res?.data?.admin_user;
                                         if (admin?.email && admin?.password) {
@@ -443,33 +522,70 @@ export const ClientManager = () => {
                     <div className="bg-white rounded-lg p-6 max-w-md w-full">
                         <h2 className="text-2xl font-bold mb-4">إسناد باقة</h2>
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-2">الباقة</label>
-                                <select className="w-full px-4 py-2 border rounded-lg" value={assignForm.pricing_plan_id} onChange={(e) => setAssignForm({ ...assignForm, pricing_plan_id: e.target.value })}>
-                                    <option value="">اختر الباقة</option>
-                                    {plans.map((p) => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-2">الدورة</label>
-                                <select className="w-full px-4 py-2 border rounded-lg" value={assignForm.billing_cycle} onChange={(e) => setAssignForm({ ...assignForm, billing_cycle: e.target.value })}>
-                                    <option value="monthly">شهري</option>
-                                    <option value="yearly">سنوي</option>
-                                    <option value="lifetime">مدى الحياة</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="flex gap-2 mt-6">
-                            <button
-                                onClick={async () => {
-                                    if (!assignModal.clientId || !assignForm.pricing_plan_id) return;
-                                    try {
-                                        await api.post(`/super_admin/clients/${assignModal.clientId}/assign-plan`, assignForm);
-                                        setAssignModal({ open: false, clientId: null });
-                                        fetchClients();
-                                        showToast('تم الإسناد بنجاح', 'success');
+                                    <div>
+                                        <label className="block text-sm font-bold mb-2">الباقة</label>
+                                        <select className="w-full px-4 py-2 border rounded-lg" value={assignForm.pricing_plan_id} onChange={(e) => {
+                                            const pid = e.target.value;
+                                            const plan = plans.find(p => String(p.id) === String(pid));
+                                            const next = {
+                                                web: !!plan?.web_enabled,
+                                                android: !!plan?.android_enabled,
+                                                ios: !!plan?.ios_enabled,
+                                            };
+                                            setAssignForm({ ...assignForm, pricing_plan_id: pid, services: next });
+                                        }}>
+                                            <option value="">اختر الباقة</option>
+                                            {plans.map((p) => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold mb-2">الدورة</label>
+                                        <select className="w-full px-4 py-2 border rounded-lg" value={assignForm.billing_cycle} onChange={(e) => setAssignForm({ ...assignForm, billing_cycle: e.target.value })}>
+                                            <option value="monthly">شهري</option>
+                                            <option value="yearly">سنوي</option>
+                                            <option value="lifetime">مدى الحياة</option>
+                                        </select>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-bold mb-2">الخدمات</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {(() => {
+                                                const plan = plans.find(p => String(p.id) === String(assignForm.pricing_plan_id));
+                                                const allowed = {
+                                                    web: !!plan?.web_enabled,
+                                                    android: !!plan?.android_enabled,
+                                                    ios: !!plan?.ios_enabled,
+                                                };
+                                                const setSvc = (k: 'web' | 'android' | 'ios') => {
+                                                    if (!allowed[k]) return;
+                                                    setAssignForm({ ...assignForm, services: { ...assignForm.services, [k]: !assignForm.services[k] } });
+                                                };
+                                                return (
+                                                    <>
+                                                        <button type="button" onClick={() => setSvc('web')} className={`px-4 py-2 rounded-lg border ${!allowed.web ? 'opacity-40 cursor-not-allowed' : ''} ${assignForm.services.web ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`} disabled={!allowed.web}>Web</button>
+                                                        <button type="button" onClick={() => setSvc('android')} className={`px-4 py-2 rounded-lg border ${!allowed.android ? 'opacity-40 cursor-not-allowed' : ''} ${assignForm.services.android ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`} disabled={!allowed.android}>Android</button>
+                                                        <button type="button" onClick={() => setSvc('ios')} className={`px-4 py-2 rounded-lg border ${!allowed.ios ? 'opacity-40 cursor-not-allowed' : ''} ${assignForm.services.ios ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`} disabled={!allowed.ios}>iOS</button>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 mt-6">
+                                    <button
+                                        onClick={async () => {
+                                            if (!assignModal.clientId || !assignForm.pricing_plan_id) return;
+                                            try {
+                                                await api.post(`/super_admin/clients/${assignModal.clientId}/assign-plan`, {
+                                                    pricing_plan_id: assignForm.pricing_plan_id,
+                                                    billing_cycle: assignForm.billing_cycle,
+                                                    services: assignForm.services,
+                                                });
+                                                setAssignModal({ open: false, clientId: null });
+                                                fetchClients();
+                                                showToast('تم الإسناد بنجاح', 'success');
                                     } catch {
                                         showToast('فشل الإسناد', 'error');
                                     }
