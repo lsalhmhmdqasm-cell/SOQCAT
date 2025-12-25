@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Events\MonitoringAlert;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
-use App\Models\RequestMetric;
 use App\Models\Order;
+use App\Models\RequestMetric;
+use App\Models\Shop;
 use App\Models\SupportTicket;
 use App\Models\SystemUpdate;
-use App\Models\Shop;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
-use App\Events\MonitoringAlert;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -51,13 +51,11 @@ class DashboardController extends Controller
             'monitoring' => $monitoring,
         ];
 
-        if (!empty($monitoring)) {
-            event(new MonitoringAlert([
-                'type' => 'daily_summary',
-                'summary' => $monitoring,
-                'generated_at' => now()->toDateTimeString(),
-            ]));
-        }
+        $this->safeBroadcastMonitoringAlert([
+            'type' => 'daily_summary',
+            'summary' => $monitoring,
+            'generated_at' => now()->toDateTimeString(),
+        ]);
 
         return response()->json($response);
     }
@@ -119,6 +117,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($row) {
                 $rate = $row->total > 0 ? round((($row->total - $row->errors) / $row->total) * 100, 2) : 100.0;
+
                 return [
                     'shop_id' => (int) $row->shop_id,
                     'crash_free_rate' => $rate,
@@ -132,6 +131,7 @@ class DashboardController extends Controller
             : collect();
         $shopsWorst = $shopsWorst->map(function ($item) use ($shopNames) {
             $item['shop_name'] = $shopNames[$item['shop_id']] ?? null;
+
             return $item;
         });
 
@@ -207,6 +207,7 @@ class DashboardController extends Controller
             $errors = $items->where('status_code', '>=', 500)->count();
             $avg = (int) round($items->avg('duration_ms') ?? 0);
             $crf = $requests > 0 ? round((($requests - $errors) / $requests) * 100, 2) : 100.0;
+
             return [
                 'bucket' => $bucket,
                 'requests' => $requests,
@@ -217,10 +218,10 @@ class DashboardController extends Controller
         })->values()->sortBy('bucket')->values();
 
         $topEndpoints = RequestMetric::select([
-                'path',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as errors'),
-            ])
+            'path',
+            DB::raw('COUNT(*) as total'),
+            DB::raw('SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as errors'),
+        ])
             ->whereBetween('created_at', [$from, $to])
             ->when($shopId, fn ($q) => $q->where('shop_id', $shopId))
             ->groupBy('path')
@@ -229,6 +230,7 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($row) {
                 $rate = $row->total > 0 ? round(($row->errors / $row->total) * 100, 2) : 0.0;
+
                 return [
                     'path' => $row->path,
                     'total' => (int) $row->total,
@@ -238,9 +240,9 @@ class DashboardController extends Controller
             });
 
         $topExceptions = RequestMetric::select([
-                'exception_class',
-                DB::raw('COUNT(*) as total'),
-            ])
+            'exception_class',
+            DB::raw('COUNT(*) as total'),
+        ])
             ->whereBetween('created_at', [$from, $to])
             ->when($shopId, fn ($q) => $q->where('shop_id', $shopId))
             ->whereNotNull('exception_class')
@@ -298,6 +300,41 @@ class DashboardController extends Controller
         $base = $values[$pos];
         $next = $values[min($pos + 1, $n - 1)];
         $frac = $posf - $pos;
+
         return (int) round($base + ($next - $base) * $frac);
+    }
+
+    private function safeBroadcastMonitoringAlert(array $payload): void
+    {
+        if (! $this->canBroadcastMonitoringAlerts()) {
+            return;
+        }
+
+        try {
+            event(new MonitoringAlert($payload));
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function canBroadcastMonitoringAlerts(): bool
+    {
+        $driver = (string) (config('broadcasting.default') ?? '');
+        if (! $driver || $driver === 'null') {
+            return false;
+        }
+
+        if ($driver === 'pusher') {
+            return (bool) (
+                config('broadcasting.connections.pusher.key')
+                && config('broadcasting.connections.pusher.secret')
+                && config('broadcasting.connections.pusher.app_id')
+            );
+        }
+
+        if ($driver === 'ably') {
+            return (bool) config('broadcasting.connections.ably.key');
+        }
+
+        return true;
     }
 }

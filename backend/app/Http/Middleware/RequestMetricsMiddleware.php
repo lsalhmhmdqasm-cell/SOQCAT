@@ -2,15 +2,15 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\RequestMetric;
+use App\Events\MonitoringAlert;
 use App\Models\Client;
+use App\Models\RequestMetric;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
-use App\Events\MonitoringAlert;
 
 class RequestMetricsMiddleware
 {
@@ -172,11 +172,11 @@ class RequestMetricsMiddleware
         }
 
         if (! empty($alerts)) {
-            event(new MonitoringAlert([
+            $this->safeBroadcastMonitoringAlert([
                 'type' => 'threshold_breach',
                 'alerts' => $alerts,
                 'generated_at' => now()->toDateTimeString(),
-            ]));
+            ]);
         }
     }
 
@@ -192,6 +192,7 @@ class RequestMetricsMiddleware
         $base = $values[$pos];
         $next = $values[min($pos + 1, $n - 1)];
         $frac = $posf - $pos;
+
         return (int) round($base + ($next - $base) * $frac);
     }
 
@@ -206,6 +207,41 @@ class RequestMetricsMiddleware
             return null;
         }
         $val = $features['sla_p95_ms'] ?? null;
+
         return is_numeric($val) ? (int) $val : null;
+    }
+
+    private function safeBroadcastMonitoringAlert(array $payload): void
+    {
+        if (! $this->canBroadcastMonitoringAlerts()) {
+            return;
+        }
+
+        try {
+            event(new MonitoringAlert($payload));
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function canBroadcastMonitoringAlerts(): bool
+    {
+        $driver = (string) (config('broadcasting.default') ?? '');
+        if (! $driver || $driver === 'null') {
+            return false;
+        }
+
+        if ($driver === 'pusher') {
+            return (bool) (
+                config('broadcasting.connections.pusher.key')
+                && config('broadcasting.connections.pusher.secret')
+                && config('broadcasting.connections.pusher.app_id')
+            );
+        }
+
+        if ($driver === 'ably') {
+            return (bool) config('broadcasting.connections.ably.key');
+        }
+
+        return true;
     }
 }
